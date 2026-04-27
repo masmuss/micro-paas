@@ -1,0 +1,36 @@
+# Binary output
+bin/
+orchestrator
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Air (Hot Reload) temporary folder
+tmp/
+
+# Go specific
+go.sum
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Operating System (macOS)
+.DS_Store
+
+# Local Database (SQLite)
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Environment Variables & Secrets
+.env
+.env.local
+
+# Logs
+*.log

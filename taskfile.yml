@@ -1,0 +1,46 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: "3"
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  dev:
+    desc: Run the app with hot reload using air
+    cmds:
+      - air
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run ./...
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test -v -race ./...
+
+  build:
+    desc: Build the binary
+    cmds:
+      - go build -o bin/orchestrator cmd/main.go
+
+  tidy:
+    desc: Clean up and sync go modules
+    cmds:
+      - go mod tidy
+      - go mod verify
+
+  docker:ls:
+    desc: Helper to list running containers (shortcut)
+    cmds:
+      - docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -rf bin/
+      - rm -rf tmp/

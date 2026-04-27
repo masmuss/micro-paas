@@ -1,0 +1,13 @@
+pre-commit:
+  parallel: true
+  commands:
+    fmt:
+      glob: "*.go"
+      run: gofmt -w {staged_files} && goimports -w {staged_files}
+
+    linter:
+      glob: "*.go"
+      run: golangci-lint run {staged_files}
+
+    tidy:
+      run: go mod tidy
