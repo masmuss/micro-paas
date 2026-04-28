@@ -26,7 +26,7 @@ func main() {
 
 	cfg, cfgErr := config.LoadConfig()
 	if cfgErr != nil {
-		log.Error("Failed to load config", "error", cfgErr)
+		log.ErrorContext(ctx, "Failed to load config", "error", cfgErr)
 		stop()
 		os.Exit(1)
 		return
@@ -34,7 +34,7 @@ func main() {
 
 	db, dbErr := database.NewBunDB(cfg.DBPath)
 	if dbErr != nil {
-		log.Error("Failed to connect to database", "error", dbErr)
+		log.ErrorContext(ctx, "Failed to connect to database", "error", dbErr)
 		stop()
 		os.Exit(1)
 		return
@@ -47,17 +47,23 @@ func main() {
 
 	_, tableErr := db.NewCreateTable().Model((*model.Instance)(nil)).IfNotExists().Exec(ctx)
 	if tableErr != nil {
-		log.Error("Failed to create instances table", "error", tableErr)
+		log.ErrorContext(ctx, "Failed to create instances table", "error", tableErr)
 		stop()
 		os.Exit(1)
 		return
 	}
 
-	application := app.New(cfg, log, db)
+	application, err := app.New(cfg, log, db)
+	if err != nil {
+		log.ErrorContext(ctx, "Failed to create application", "error", err)
+		stop()
+		os.Exit(1)
+		return
+	}
 
 	go func() {
 		if startErr := application.Start(ctx); startErr != nil && !errors.Is(startErr, http.ErrServerClosed) {
-			log.Error("Failed to start server", "error", startErr)
+			log.ErrorContext(ctx, "Failed to start server", "error", startErr)
 			stop()
 			os.Exit(1)
 		}
@@ -66,11 +72,11 @@ func main() {
 	<-ctx.Done()
 	stop()
 
-	log.Info("Shutting down micro-paas server")
+	log.InfoContext(ctx, "Shutting down micro-paas server")
 
 	seconds := 5
 	_, cancel := context.WithTimeout(context.Background(), time.Duration(seconds)*time.Second)
 	defer cancel()
 
-	log.Info("Server stopped")
+	log.InfoContext(ctx, "Server stopped")
 }

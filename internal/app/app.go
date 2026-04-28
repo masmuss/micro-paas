@@ -24,17 +24,16 @@ type App struct {
 	DockerService service.DockerService
 }
 
-// New returns a new App.
-func New(cfg *config.Config, log *slog.Logger, db *bun.DB) *App {
+// New creates and wires a new App instance. Returns error if dependency setup fails.
+func New(cfg *config.Config, log *slog.Logger, db *bun.DB) (*App, error) {
 	instanceRepo := repository.NewInstanceRepository(db, log)
 	dockerSvc, err := service.NewDockerService(cfg, log)
 	if err != nil {
 		log.Error("Failed to create Docker service", "error", err)
-		panic(err)
+		return nil, err
 	}
 
 	instanceHandler := handler.NewInstanceHandler(instanceRepo, log)
-
 	r := chi.NewRouter()
 
 	app := &App{
@@ -47,18 +46,20 @@ func New(cfg *config.Config, log *slog.Logger, db *bun.DB) *App {
 
 	app.setupRoutes(instanceHandler)
 
-	return app
+	return app, nil
 }
 
-// Start runs the HTTP server.
+// Start runs the HTTP server and pings Docker daemon before serving.
 func (a *App) Start(ctx context.Context) error {
+	const (
+		rwTimeoutSec   = 10
+		idleTimeoutSec = 60
+	)
 	if err := a.DockerService.Ping(ctx); err != nil {
 		a.Logger.ErrorContext(ctx, "Could not ping Docker daemon", "error", err)
 	}
 
 	a.Logger.InfoContext(ctx, "Server is starting", "port", a.Config.ServerPort)
-	rwTimeoutSec := 10
-	idleTimeoutSec := 60
 
 	srv := &http.Server{
 		Addr:         ":" + a.Config.ServerPort,
