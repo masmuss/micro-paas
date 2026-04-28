@@ -28,6 +28,11 @@ tasks:
     cmds:
       - go build -o bin/orchestrator cmd/main.go
 
+  format:
+    desc: Format all Go files using gofmt
+    cmds:
+      - gofmt -w .
+
   tidy:
     desc: Clean up and sync go modules
     cmds:
