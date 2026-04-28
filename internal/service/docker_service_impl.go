@@ -1,4 +1,3 @@
-// Package service provides application services that encapsulate business logic and interactions with external systems.
 package service
 
 import (
@@ -12,21 +11,13 @@ import (
 	"github.com/moby/moby/client"
 )
 
-// DockerService defines the interface for interacting with the Docker daemon.
-type DockerService interface {
-	CreateContainer(ctx context.Context, imageName string, containerName string) (string, error)
-	Ping(ctx context.Context) error
-	PullImage(ctx context.Context, imageName string) error
-	StartContainer(ctx context.Context, containerID string) error
-}
-
-type dockerServiceImpl struct {
+// DockerServiceImpl is the concrete implementation of DockerService interface.
+type DockerServiceImpl struct {
 	cli *client.Client
 	log *slog.Logger
 }
 
-// NewDockerService creates a new DockerService using the provided configuration and logger.
-func NewDockerService(cfg *config.Config, log *slog.Logger) (DockerService, error) {
+func newDockerServiceImpl(cfg *config.Config, log *slog.Logger) (DockerService, error) {
 	cli, err := client.New(
 		client.WithHost("unix://"+cfg.DockerSocket),
 		client.WithAPIVersionNegotiation(),
@@ -34,14 +25,14 @@ func NewDockerService(cfg *config.Config, log *slog.Logger) (DockerService, erro
 	if err != nil {
 		return nil, err
 	}
-	return &dockerServiceImpl{
+	return &DockerServiceImpl{
 		cli: cli,
 		log: log.With("component", "docker_service"),
 	}, nil
 }
 
-// CreateContainer pulls the specified image and creates a new container with the given name, then starts it.
-func (s *dockerServiceImpl) CreateContainer(
+// CreateContainer creates a new Docker container with the specified image and name, returning the container ID or an error.
+func (s *DockerServiceImpl) CreateContainer(
 	ctx context.Context,
 	imageName string,
 	containerName string,
@@ -64,8 +55,8 @@ func (s *dockerServiceImpl) CreateContainer(
 	return resp.ID, nil
 }
 
-// Ping checks the connectivity to the Docker daemon by sending a ping request and logging the response.
-func (s *dockerServiceImpl) Ping(ctx context.Context) error {
+// Ping checks the connectivity to the Docker daemon and logs the API version.
+func (s *DockerServiceImpl) Ping(ctx context.Context) error {
 	s.log.InfoContext(ctx, "Pinging Docker daemon...")
 	ping, err := s.cli.Ping(ctx, client.PingOptions{})
 	if err != nil {
@@ -76,8 +67,8 @@ func (s *dockerServiceImpl) Ping(ctx context.Context) error {
 	return nil
 }
 
-// PullImage pulls the specified Docker image from the registry and logs the progress.
-func (s *dockerServiceImpl) PullImage(ctx context.Context, imageName string) error {
+// PullImage pulls the specified Docker image, logging progress and errors.
+func (s *DockerServiceImpl) PullImage(ctx context.Context, imageName string) error {
 	s.log.InfoContext(ctx, "Pulling image", "image", imageName)
 
 	reader, imagePullErr := s.cli.ImagePull(ctx, imageName, client.ImagePullOptions{})
@@ -97,8 +88,8 @@ func (s *dockerServiceImpl) PullImage(ctx context.Context, imageName string) err
 	return nil
 }
 
-// StartContainer starts the container with the specified ID and logs the outcome.
-func (s *dockerServiceImpl) StartContainer(ctx context.Context, containerID string) error {
+// StartContainer starts the Docker container with the given ID, logging the process and any errors.
+func (s *DockerServiceImpl) StartContainer(ctx context.Context, containerID string) error {
 	s.log.InfoContext(ctx, "Starting container...", "id", containerID)
 
 	if _, containerStartErr := s.cli.ContainerStart(
