@@ -56,14 +56,12 @@ func main() {
 	application := app.New(cfg, log, db)
 
 	go func() {
-		if startErr := application.Start(); startErr != nil && !errors.Is(startErr, http.ErrServerClosed) {
+		if startErr := application.Start(ctx); startErr != nil && !errors.Is(startErr, http.ErrServerClosed) {
 			log.Error("Failed to start server", "error", startErr)
 			stop()
 			os.Exit(1)
 		}
 	}()
-
-	log.Info("Starting micro-paas server", "port", cfg.ServerPort)
 
 	<-ctx.Done()
 	stop()

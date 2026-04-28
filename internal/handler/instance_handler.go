@@ -14,7 +14,7 @@ import (
 // It depends on an InstanceRepository for data access and a logger for structured logging.
 type InstanceHandler struct {
 	// repo is the data access layer for instances.
-	repo   repository.InstanceRepository
+	repo repository.InstanceRepository
 	// logger is used for logging errors and info.
 	logger *slog.Logger
 }

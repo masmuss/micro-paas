@@ -11,9 +11,9 @@ import (
 // All fields are required for the application to run.
 type Config struct {
 	// ServerPort is the port on which the HTTP server will listen (e.g. "8080").
-	ServerPort   string `mapstructure:"SERVER_PORT"   validate:"required"`
+	ServerPort string `mapstructure:"SERVER_PORT" validate:"required"`
 	// DBPath is the file path to the SQLite database (e.g. "./micro-paas.db").
-	DBPath       string `mapstructure:"DB_PATH"       validate:"required"`
+	DBPath string `mapstructure:"DB_PATH" validate:"required"`
 	// DockerSocket is the path to the Docker socket for container management (e.g. "/var/run/docker.sock").
 	DockerSocket string `mapstructure:"DOCKER_SOCKET" validate:"required"`
 }
