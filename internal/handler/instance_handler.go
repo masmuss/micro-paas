@@ -7,12 +7,14 @@ import (
 
 	"github.com/masmuss/micro-paas/internal/model"
 	"github.com/masmuss/micro-paas/internal/repository"
+	"github.com/masmuss/micro-paas/internal/service"
 	"github.com/masmuss/micro-paas/pkg/response"
 )
 
 // InstanceHandler provides HTTP handlers for managing application instances.
 // It depends on an InstanceRepository for data access and a logger for structured logging.
 type InstanceHandler struct {
+	dockerSvc service.DockerService
 	// repo is the data access layer for instances.
 	repo repository.InstanceRepository
 	// logger is used for logging errors and info.
@@ -21,10 +23,15 @@ type InstanceHandler struct {
 
 // NewInstanceHandler constructs an InstanceHandler with the given repository and logger.
 // Use this to register instance-related HTTP endpoints.
-func NewInstanceHandler(repo repository.InstanceRepository, logger *slog.Logger) *InstanceHandler {
+func NewInstanceHandler(
+	dockerSvc service.DockerService,
+	repo repository.InstanceRepository,
+	logger *slog.Logger,
+) *InstanceHandler {
 	return &InstanceHandler{
-		repo:   repo,
-		logger: logger,
+		dockerSvc: dockerSvc,
+		repo:      repo,
+		logger:    logger,
 	}
 }
 
@@ -34,6 +41,8 @@ func NewInstanceHandler(repo repository.InstanceRepository, logger *slog.Logger)
 func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	var instance model.Instance
+	imageName := "nginx:alpine" // For simplicity, using a fixed image. In a real app, this would come from the request.
+
 	if err := response.DecodeJSON(r, &instance); err != nil {
 		h.logger.ErrorContext(ctx, "failed to decode instance", "error", err)
 		writeJSONErr := response.WriteJSON(w, http.StatusBadRequest, "Invalid request body", nil)
@@ -43,8 +52,34 @@ func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if pullImageErr := h.dockerSvc.PullImage(ctx, imageName); pullImageErr != nil {
+		h.logger.ErrorContext(ctx, "Failed to pull image", "error", pullImageErr)
+		_ = response.WriteJSON(w, http.StatusInternalServerError, "Failed to pull image", nil)
+		return
+	}
+
+	cID, createContainerErr := h.dockerSvc.CreateContainer(
+		ctx,
+		imageName,
+		instance.Name,
+	)
+	if createContainerErr != nil {
+		h.logger.ErrorContext(ctx, "Failed to create container", "error", createContainerErr)
+		_ = response.WriteJSON(w, http.StatusInternalServerError, "Failed to create container", nil)
+		return
+	}
+
+	if startContainerErr := h.dockerSvc.StartContainer(ctx, cID); startContainerErr != nil {
+		h.logger.ErrorContext(ctx, "Failed to start container", "error", startContainerErr)
+		_ = response.WriteJSON(w, http.StatusInternalServerError, "Failed to start container", nil)
+		return
+	}
+
+	instance.ContainerID = cID
+
 	if err := h.repo.Create(ctx, &instance); err != nil {
 		h.logger.ErrorContext(ctx, "Failed to create instance", "error", err)
+
 		writeJSONErr := response.WriteJSON(w, http.StatusInternalServerError, "Internal server error", nil)
 		if writeJSONErr != nil {
 			h.logger.ErrorContext(ctx, "failed to encode response", "error", writeJSONErr)

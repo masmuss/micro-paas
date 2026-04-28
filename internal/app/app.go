@@ -33,7 +33,7 @@ func New(cfg *config.Config, log *slog.Logger, db *bun.DB) (*App, error) {
 		return nil, err
 	}
 
-	instanceHandler := handler.NewInstanceHandler(instanceRepo, log)
+	instanceHandler := handler.NewInstanceHandler(dockerSvc, instanceRepo, log)
 	r := chi.NewRouter()
 
 	app := &App{
