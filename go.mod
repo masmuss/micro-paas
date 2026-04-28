@@ -11,6 +11,8 @@ require modernc.org/sqlite v1.50.0
 
 require github.com/uptrace/bun/extra/bundebug v1.2.18
 
+require github.com/go-chi/chi/v5 v5.2.5
+
 require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/air-verse/air v1.65.1 // indirect

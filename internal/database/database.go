@@ -1,3 +1,4 @@
+// Package database provides database connection utilities for the application.
 package database
 
 import (
@@ -10,6 +11,9 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// NewBunDB opens a SQLite database at dbPath and returns a Bun ORM DB instance.
+// The returned *bun.DB must be closed by the caller when no longer needed.
+// Returns an error if the database cannot be opened.
 func NewBunDB(dbPath string) (*bun.DB, error) {
 	sqldb, err := sql.Open("sqlite", dbPath)
 	if err != nil {
