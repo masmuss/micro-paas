@@ -2,12 +2,12 @@
 package handler
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 
 	"github.com/masmuss/micro-paas/internal/model"
 	"github.com/masmuss/micro-paas/internal/repository"
+	"github.com/masmuss/micro-paas/pkg/response"
 )
 
 // InstanceHandler provides HTTP handlers for managing application instances.
@@ -34,23 +34,31 @@ func NewInstanceHandler(repo repository.InstanceRepository, logger *slog.Logger)
 func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	var instance model.Instance
-
-	if err := json.NewDecoder(r.Body).Decode(&instance); err != nil {
-		h.logger.Error("failed to decode instance", "error", err)
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if err := response.DecodeJSON(r, &instance); err != nil {
+		h.logger.ErrorContext(ctx, "failed to decode instance", "error", err)
+		writeJSONErr := response.WriteJSON(w, http.StatusBadRequest, "Invalid request body", nil)
+		if writeJSONErr != nil {
+			h.logger.ErrorContext(ctx, "failed to encode response", "error", writeJSONErr)
+		}
 		return
 	}
 
 	if err := h.repo.Create(ctx, &instance); err != nil {
-		h.logger.Error("Failed to create instance", "error", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		h.logger.ErrorContext(ctx, "Failed to create instance", "error", err)
+		writeJSONErr := response.WriteJSON(w, http.StatusInternalServerError, "Internal server error", nil)
+		if writeJSONErr != nil {
+			h.logger.ErrorContext(ctx, "failed to encode response", "error", writeJSONErr)
+		}
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(instance); err != nil {
-		h.logger.Error("failed to encode response", "error", err)
+	if writeJSONErr := response.WriteJSON(
+		w,
+		http.StatusCreated,
+		"Instance created successfully",
+		instance,
+	); writeJSONErr != nil {
+		h.logger.ErrorContext(ctx, "failed to encode response", "error", writeJSONErr)
 	}
 }
 
@@ -58,17 +66,18 @@ func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 // Returns a JSON array of all instances or 500 on error.
 func (h *InstanceHandler) List(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-
 	instances, listErr := h.repo.List(ctx)
+
 	if listErr != nil {
-		h.logger.Error("Failed to list instances", "error", listErr)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		h.logger.ErrorContext(ctx, "Failed to list instances", "error", listErr)
+		err := response.WriteJSON(w, http.StatusInternalServerError, "Internal server error", nil)
+		if err != nil {
+			h.logger.ErrorContext(ctx, "failed to encode response", "error", err)
+		}
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if encodeErr := json.NewEncoder(w).Encode(instances); encodeErr != nil {
-		h.logger.Error("failed to encode response", "error", encodeErr)
+	if err := response.WriteJSON(w, http.StatusOK, "Instances retrieved successfully", instances); err != nil {
+		h.logger.ErrorContext(ctx, "failed to encode response", "error", err)
 	}
 }
