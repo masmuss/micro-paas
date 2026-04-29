@@ -4,8 +4,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/masmuss/micro-paas/internal/delivery/req"
-	"github.com/masmuss/micro-paas/internal/delivery/res"
+	"github.com/masmuss/micro-paas/internal/delivery/dto/req"
+	"github.com/masmuss/micro-paas/internal/delivery/dto/res"
 	"github.com/masmuss/micro-paas/internal/model"
 	"github.com/masmuss/micro-paas/internal/repository"
 	"github.com/masmuss/micro-paas/internal/service"
