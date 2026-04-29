@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/masmuss/micro-paas/internal/config"
-	"github.com/masmuss/micro-paas/internal/handler"
+	"github.com/masmuss/micro-paas/internal/delivery/handler"
 	"github.com/masmuss/micro-paas/internal/repository"
 	"github.com/masmuss/micro-paas/internal/service"
 	"github.com/uptrace/bun"

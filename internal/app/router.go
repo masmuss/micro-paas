@@ -3,7 +3,7 @@ package app
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/masmuss/micro-paas/internal/handler"
+	"github.com/masmuss/micro-paas/internal/delivery/handler"
 )
 
 func (a *App) setupRoutes(instanceHandler *handler.InstanceHandler) {
