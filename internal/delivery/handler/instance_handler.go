@@ -36,7 +36,9 @@ func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	if err := response.DecodeJSON(r, &reqBody); err != nil {
 		h.logger.ErrorContext(ctx, "failed to decode request", "error", err)
-		_ = response.WriteJSON(w, http.StatusBadRequest, "Invalid request body", nil)
+		if writeErr := response.WriteJSON(w, http.StatusBadRequest, "Invalid request body", nil); writeErr != nil {
+			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+		}
 		return
 	}
 
@@ -48,20 +50,26 @@ func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	if pullErr := h.dockerSvc.PullImage(ctx, reqBody.Image); pullErr != nil {
 		h.logger.ErrorContext(ctx, "Failed to pull image", "error", pullErr)
-		_ = response.WriteJSON(w, http.StatusInternalServerError, "Failed to pull image", nil)
+		if writeErr := response.WriteJSON(w, http.StatusInternalServerError, "Failed to pull image", nil); writeErr != nil {
+			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+		}
 		return
 	}
 
 	cID, createContainerErr := h.dockerSvc.CreateContainer(ctx, reqBody.Image, instance.Name)
 	if createContainerErr != nil {
 		h.logger.ErrorContext(ctx, "Failed to create container", "error", createContainerErr)
-		_ = response.WriteJSON(w, http.StatusInternalServerError, "Failed to create container", nil)
+		if writeErr := response.WriteJSON(w, http.StatusInternalServerError, "Failed to create container", nil); writeErr != nil {
+			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+		}
 		return
 	}
 
 	if startContainerErr := h.dockerSvc.StartContainer(ctx, cID); startContainerErr != nil {
 		h.logger.ErrorContext(ctx, "Failed to start container", "error", startContainerErr)
-		_ = response.WriteJSON(w, http.StatusInternalServerError, "Failed to start container", nil)
+		if writeErr := response.WriteJSON(w, http.StatusInternalServerError, "Failed to start container", nil); writeErr != nil {
+			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+		}
 		return
 	}
 
@@ -69,12 +77,16 @@ func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.repo.Create(ctx, instance); err != nil {
 		h.logger.ErrorContext(ctx, "Failed to create instance", "error", err)
-		_ = response.WriteJSON(w, http.StatusInternalServerError, "Internal server error", nil)
+		if writeErr := response.WriteJSON(w, http.StatusInternalServerError, "Internal server error", nil); writeErr != nil {
+			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+		}
 		return
 	}
 
 	instanceRes := toResponse(instance)
-	_ = response.WriteJSON(w, http.StatusCreated, "Instance created successfully", instanceRes)
+	if writeErr := response.WriteJSON(w, http.StatusCreated, "Instance created successfully", instanceRes); writeErr != nil {
+		h.logger.ErrorContext(ctx, "failed to write success response", "error", writeErr)
+	}
 }
 
 func (h *InstanceHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -83,12 +95,16 @@ func (h *InstanceHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	if listErr != nil {
 		h.logger.ErrorContext(ctx, "Failed to list instances", "error", listErr)
-		_ = response.WriteJSON(w, http.StatusInternalServerError, "Internal server error", nil)
+		if writeErr := response.WriteJSON(w, http.StatusInternalServerError, "Internal server error", nil); writeErr != nil {
+			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+		}
 		return
 	}
 
 	instancesRes := toListResponse(instances)
-	_ = response.WriteJSON(w, http.StatusOK, "Instances retrieved successfully", instancesRes)
+	if writeErr := response.WriteJSON(w, http.StatusOK, "Instances retrieved successfully", instancesRes); writeErr != nil {
+		h.logger.ErrorContext(ctx, "failed to write success response", "error", writeErr)
+	}
 }
 
 func toResponse(m *model.Instance) *res.Instance {

@@ -3,6 +3,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -29,8 +30,7 @@ func New(cfg *config.Config, log *slog.Logger, db *bun.DB) (*App, error) {
 	instanceRepo := repository.NewInstanceRepository(db, log)
 	dockerSvc, err := service.NewDockerService(cfg, log)
 	if err != nil {
-		log.Error("Failed to create Docker service", "error", err)
-		return nil, err
+		return nil, fmt.Errorf("create docker service: %w", err)
 	}
 
 	instanceHandler := handler.NewInstanceHandler(dockerSvc, instanceRepo, log)
@@ -56,7 +56,7 @@ func (a *App) Start(ctx context.Context) error {
 		idleTimeoutSec = 60
 	)
 	if err := a.DockerService.Ping(ctx); err != nil {
-		a.Logger.ErrorContext(ctx, "Could not ping Docker daemon", "error", err)
+		return fmt.Errorf("ping docker daemon during startup: %w", err)
 	}
 
 	a.Logger.InfoContext(ctx, "Server is starting", "port", a.Config.ServerPort)

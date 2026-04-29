@@ -62,6 +62,13 @@ func main() {
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.ErrorContext(ctx, "server panicked", "panic", r)
+				stop()
+				os.Exit(1)
+			}
+		}()
 		if startErr := application.Start(ctx); startErr != nil && !errors.Is(startErr, http.ErrServerClosed) {
 			log.ErrorContext(ctx, "Failed to start server", "error", startErr)
 			stop()

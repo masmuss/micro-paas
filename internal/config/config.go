@@ -3,6 +3,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/spf13/viper"
 )
@@ -34,12 +35,15 @@ func LoadConfig() (*Config, error) {
 	if err := viper.ReadInConfig(); err != nil {
 		var notFoundErr viper.ConfigFileNotFoundError
 		if !errors.As(err, &notFoundErr) {
-			return nil, err
+			return nil, fmt.Errorf("read config file: %w", err)
 		}
 	}
 
 	var config Config
 	err := viper.Unmarshal(&config)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal config: %w", err)
+	}
 
-	return &config, err
+	return &config, nil
 }
