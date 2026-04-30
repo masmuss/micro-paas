@@ -9,6 +9,7 @@ import (
 	"github.com/masmuss/micro-paas/internal/model"
 	"github.com/masmuss/micro-paas/internal/repository"
 	"github.com/masmuss/micro-paas/internal/service"
+	"github.com/masmuss/micro-paas/internal/validation"
 )
 
 // InstanceHandler handles HTTP requests for the instance resource.
@@ -54,6 +55,27 @@ func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if err := response.DecodeJSON(r, &reqBody); err != nil {
 		h.logger.ErrorContext(ctx, "failed to decode request", "error", err)
 		if writeErr := response.WriteJSON(w, http.StatusBadRequest, "Invalid request body", nil); writeErr != nil {
+			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+		}
+		return
+	}
+
+	if err := validation.ValidateCreateInstance(reqBody.Name, reqBody.Image, reqBody.Subdomain); err != nil {
+		if writeErr := response.WriteJSON(w, http.StatusBadRequest, err.Error(), nil); writeErr != nil {
+			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+		}
+		return
+	}
+
+	if _, err := h.repo.GetBySubdomain(ctx, reqBody.Subdomain); err == nil {
+		if writeErr := response.WriteJSON(w, http.StatusConflict, "subdomain already in use", nil); writeErr != nil {
+			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+		}
+		return
+	}
+
+	if _, err := h.repo.GetByName(ctx, reqBody.Name); err == nil {
+		if writeErr := response.WriteJSON(w, http.StatusConflict, "name already in use", nil); writeErr != nil {
 			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
 		}
 		return
