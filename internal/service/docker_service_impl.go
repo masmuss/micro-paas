@@ -125,3 +125,15 @@ func (s *DockerServiceImpl) RemoveContainer(ctx context.Context, containerID str
 	s.log.InfoContext(ctx, "Container removed successfully", "id", containerID)
 	return nil
 }
+
+// GetContainerStatus returns the current status of a container.
+func (s *DockerServiceImpl) GetContainerStatus(ctx context.Context, containerID string) (string, error) {
+	inspect, err := s.cli.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
+	if err != nil {
+		return "", fmt.Errorf("inspect container %q: %w", containerID, err)
+	}
+	if inspect.Container.State == nil {
+		return "removed", nil
+	}
+	return string(inspect.Container.State.Status), nil
+}

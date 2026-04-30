@@ -16,6 +16,7 @@ type DockerService interface {
 	StartContainer(ctx context.Context, containerID string) error
 	StopContainer(ctx context.Context, containerID string) error
 	RemoveContainer(ctx context.Context, containerID string) error
+	GetContainerStatus(ctx context.Context, containerID string) (string, error)
 }
 
 // NewDockerService creates a new DockerService using the provided configuration and logger.

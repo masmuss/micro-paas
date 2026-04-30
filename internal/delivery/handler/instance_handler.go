@@ -172,6 +172,10 @@ func (h *InstanceHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	for _, instance := range instances {
+		h.syncStatus(ctx, instance)
+	}
+
 	res := toListResponse(instances)
 	if writeErr := response.WriteJSON(w, http.StatusOK, "Instances retrieved successfully", res); writeErr != nil {
 		h.logger.ErrorContext(ctx, "failed to write success response", "error", writeErr)
@@ -260,4 +264,34 @@ func toListResponse(instances []*model.Instance) instancesRes {
 		result[i] = toResponse(m)
 	}
 	return result
+}
+
+func (h *InstanceHandler) syncStatus(ctx context.Context, instance *model.Instance) {
+	status, err := h.dockerSvc.GetContainerStatus(ctx, instance.ContainerID)
+	if err != nil {
+		h.logger.ErrorContext(ctx, "Failed to get container status", "error", err)
+		return
+	}
+
+	var newStatus model.Status
+	switch status {
+	case "running":
+		newStatus = model.StatusRunning
+	case "exited", "stopped":
+		newStatus = model.StatusStopped
+	default:
+		newStatus = model.StatusError
+	}
+
+	if newStatus != instance.Status {
+		instance.Status = newStatus
+		if updateInstanceErr := h.repo.Update(ctx, instance); updateInstanceErr != nil {
+			h.logger.ErrorContext(
+				ctx,
+				"Failed to update instance status",
+				"error",
+				updateInstanceErr,
+			)
+		}
+	}
 }
