@@ -10,7 +10,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// bunInstanceRepository implements InstanceRepository using Bun ORM.
+// bunInstanceRepository implements [InstanceRepository] using Bun ORM.
 type bunInstanceRepository struct {
 	db     *bun.DB
 	logger *slog.Logger

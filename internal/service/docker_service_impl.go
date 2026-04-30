@@ -11,7 +11,7 @@ import (
 	"github.com/moby/moby/client"
 )
 
-// DockerServiceImpl is the concrete implementation of DockerService interface.
+// DockerServiceImpl implements [DockerService] for interacting with the Docker daemon.
 type DockerServiceImpl struct {
 	cli *client.Client
 	log *slog.Logger

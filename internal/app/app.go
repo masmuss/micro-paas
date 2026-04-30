@@ -18,11 +18,11 @@ import (
 
 // App is the main application container.
 type App struct {
-	Config        *config.Config
-	Logger        *slog.Logger
-	DB            *bun.DB
-	Router        *chi.Mux
-	DockerService service.DockerService
+	Config *config.Config
+	Logger *slog.Logger
+	DB     *bun.DB
+	Router *chi.Mux
+	Pinger service.DockerService
 }
 
 // New creates and wires a new App instance. Returns error if dependency setup fails.
@@ -37,11 +37,11 @@ func New(cfg *config.Config, log *slog.Logger, db *bun.DB) (*App, error) {
 	r := chi.NewRouter()
 
 	app := &App{
-		Config:        cfg,
-		Logger:        log,
-		DB:            db,
-		Router:        r,
-		DockerService: dockerSvc,
+		Config: cfg,
+		Logger: log,
+		DB:     db,
+		Router: r,
+		Pinger: dockerSvc,
 	}
 
 	app.setupRoutes(instanceHandler)
@@ -55,7 +55,7 @@ func (a *App) Start(ctx context.Context) error {
 		rwTimeoutSec   = 10
 		idleTimeoutSec = 60
 	)
-	if err := a.DockerService.Ping(ctx); err != nil {
+	if err := a.Pinger.Ping(ctx); err != nil {
 		return fmt.Errorf("ping docker daemon during startup: %w", err)
 	}
 
