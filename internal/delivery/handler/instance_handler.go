@@ -2,9 +2,13 @@
 package handler
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/masmuss/micro-paas/internal/delivery/response"
 	"github.com/masmuss/micro-paas/internal/model"
 	"github.com/masmuss/micro-paas/internal/repository"
@@ -116,6 +120,7 @@ func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	if startContainerErr := h.dockerSvc.StartContainer(ctx, cID); startContainerErr != nil {
 		h.logger.ErrorContext(ctx, "Failed to start container", "error", startContainerErr)
+		h.cleanupContainer(ctx, cID)
 		if writeErr := response.WriteJSON(
 			w,
 			http.StatusInternalServerError,
@@ -131,6 +136,7 @@ func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.repo.Create(ctx, instance); err != nil {
 		h.logger.ErrorContext(ctx, "Failed to create instance", "error", err)
+		h.cleanupContainer(ctx, cID)
 		if writeErr := response.WriteJSON(
 			w,
 			http.StatusInternalServerError,
@@ -178,6 +184,73 @@ func toResponse(m *model.Instance) *instanceRes {
 		Name:      m.Name,
 		Subdomain: m.Subdomain,
 		Status:    m.Status.String(),
+	}
+}
+
+func (h *InstanceHandler) cleanupContainer(ctx context.Context, containerID string) {
+	if stopErr := h.dockerSvc.StopContainer(ctx, containerID); stopErr != nil {
+		h.logger.ErrorContext(ctx, "Failed to stop container during cleanup", "error", stopErr)
+	}
+	if removeErr := h.dockerSvc.RemoveContainer(ctx, containerID); removeErr != nil {
+		h.logger.ErrorContext(ctx, "Failed to remove container during cleanup", "error", removeErr)
+	}
+}
+
+// Delete handles the deletion of an instance and its container.
+func (h *InstanceHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		if writeErr := response.WriteJSON(w, http.StatusBadRequest, "Invalid ID", nil); writeErr != nil {
+			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+		}
+		return
+	}
+
+	instance, err := h.repo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			if writeErr := response.WriteJSON(w, http.StatusNotFound, "Instance not found", nil); writeErr != nil {
+				h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+			}
+			return
+		}
+		h.logger.ErrorContext(ctx, "Failed to get instance", "error", err)
+		if writeErr := response.WriteJSON(
+			w,
+			http.StatusInternalServerError,
+			"Internal server error",
+			nil,
+		); writeErr != nil {
+			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+		}
+		return
+	}
+
+	h.cleanupContainer(ctx, instance.ContainerID)
+
+	if deleteContainerErr := h.repo.Delete(ctx, id); deleteContainerErr != nil {
+		h.logger.ErrorContext(
+			ctx,
+			"Failed to delete instance",
+			"error",
+			deleteContainerErr,
+		)
+		if writeErr := response.WriteJSON(
+			w,
+			http.StatusInternalServerError,
+			"Internal server error",
+			nil,
+		); writeErr != nil {
+			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+		}
+		return
+	}
+
+	if writeErr := response.WriteJSON(w, http.StatusOK, "Instance deleted successfully", nil); writeErr != nil {
+		h.logger.ErrorContext(ctx, "failed to write success response", "error", writeErr)
 	}
 }
 
