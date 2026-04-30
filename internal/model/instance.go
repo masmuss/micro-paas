@@ -13,9 +13,13 @@ import (
 type Status int
 
 const (
+	// StatusUnknown represents an unknown status.
 	StatusUnknown Status = iota
+	// StatusRunning represents a running status.
 	StatusRunning
+	// StatusStopped represents a stopped status.
 	StatusStopped
+	// StatusError represents an error status.
 	StatusError
 )
 
@@ -41,10 +45,12 @@ func (s Status) String() string {
 	return str
 }
 
+// MarshalJSON implements the [json.Marshaler] interface for Status.
 func (s Status) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + s.String() + `"`), nil
 }
 
+// UnmarshalJSON implements the [json.Unmarshaler] interface for Status.
 func (s *Status) UnmarshalJSON(data []byte) error {
 	if len(data) < 3 {
 		return fmt.Errorf("invalid status value: %s", data)
@@ -58,11 +64,13 @@ func (s *Status) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// Value implements the [driver.Valuer] interface for Status.
 func (s Status) Value() (driver.Value, error) {
 	return s.String(), nil
 }
 
-func (s *Status) Scan(value interface{}) error {
+// Scan implements the [driver.Scanner] interface for Status.
+func (s *Status) Scan(value any) error {
 	str, ok := value.(string)
 	if !ok {
 		return fmt.Errorf("expected string for status, got %T", value)
