@@ -2,10 +2,86 @@
 package model
 
 import (
+	"database/sql/driver"
+	"fmt"
 	"time"
 
 	"github.com/uptrace/bun"
 )
+
+// Status represents the state of an instance.
+type Status int
+
+const (
+	// StatusUnknown represents an unknown status.
+	StatusUnknown Status = iota
+	// StatusRunning represents a running status.
+	StatusRunning
+	// StatusStopped represents a stopped status.
+	StatusStopped
+	// StatusError represents an error status.
+	StatusError
+)
+
+var statusStrings = map[Status]string{
+	StatusUnknown: "unknown",
+	StatusRunning: "running",
+	StatusStopped: "stopped",
+	StatusError:   "error",
+}
+
+var stringToStatus = map[string]Status{
+	"unknown": StatusUnknown,
+	"running": StatusRunning,
+	"stopped": StatusStopped,
+	"error":   StatusError,
+}
+
+func (s Status) String() string {
+	str, ok := statusStrings[s]
+	if !ok {
+		return "unknown"
+	}
+	return str
+}
+
+// MarshalJSON implements the [json.Marshaler] interface for Status.
+func (s Status) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + s.String() + `"`), nil
+}
+
+// UnmarshalJSON implements the [json.Unmarshaler] interface for Status.
+func (s *Status) UnmarshalJSON(data []byte) error {
+	if len(data) < 3 {
+		return fmt.Errorf("invalid status value: %s", data)
+	}
+	str := string(data[1 : len(data)-1])
+	val, ok := stringToStatus[str]
+	if !ok {
+		return fmt.Errorf("unknown status: %s", str)
+	}
+	*s = val
+	return nil
+}
+
+// Value implements the [driver.Valuer] interface for Status.
+func (s Status) Value() (driver.Value, error) {
+	return s.String(), nil
+}
+
+// Scan implements the [driver.Scanner] interface for Status.
+func (s *Status) Scan(value any) error {
+	str, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("expected string for status, got %T", value)
+	}
+	val, ok := stringToStatus[str]
+	if !ok {
+		return fmt.Errorf("unknown status: %s", str)
+	}
+	*s = val
+	return nil
+}
 
 // Instance is a data model for an application instance.
 type Instance struct {
@@ -19,8 +95,8 @@ type Instance struct {
 	ContainerID string `bun:"container_id,unique" json:"container_id"`
 	// Subdomain is the unique subdomain assigned for routing to this instance.
 	Subdomain string `bun:"subdomain,unique" json:"subdomain"`
-	// Status is the current state of the instance (e.g. "running", "stopped").
-	Status string `bun:"status,default:'running'" json:"status"`
+	// Status is the current state of the instance.
+	Status Status `bun:"status,default:'running'" json:"status"`
 	// CreatedAt is the timestamp when the instance was created.
 	CreatedAt time.Time `bun:"created_at,nullzero,notnull,default:current_timestamp" json:"created_at"`
 	// UpdatedAt is the timestamp when the instance was last updated.

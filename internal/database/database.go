@@ -3,6 +3,7 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/sqlitedialect"
@@ -17,7 +18,7 @@ import (
 func NewBunDB(dbPath string) (*bun.DB, error) {
 	sqldb, err := sql.Open("sqlite", dbPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("open database %q: %w", dbPath, err)
 	}
 
 	db := bun.NewDB(sqldb, sqlitedialect.New())
