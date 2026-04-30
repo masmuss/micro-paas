@@ -17,6 +17,8 @@ type DockerServiceImpl struct {
 	log *slog.Logger
 }
 
+var _ DockerService = (*DockerServiceImpl)(nil)
+
 func newDockerServiceImpl(cfg *config.Config, log *slog.Logger) (DockerService, error) {
 	cli, err := client.New(
 		client.WithHost("unix://"+cfg.DockerSocket),

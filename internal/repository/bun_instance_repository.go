@@ -16,6 +16,8 @@ type bunInstanceRepository struct {
 	logger *slog.Logger
 }
 
+var _ InstanceRepository = (*bunInstanceRepository)(nil)
+
 // NewInstanceRepository returns a Bun-based InstanceRepository.
 func NewInstanceRepository(db *bun.DB, logger *slog.Logger) InstanceRepository {
 	return &bunInstanceRepository{

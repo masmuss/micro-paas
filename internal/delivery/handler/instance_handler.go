@@ -62,7 +62,7 @@ func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 	instance := &model.Instance{
 		Name:      reqBody.Name,
 		Subdomain: reqBody.Subdomain,
-		Status:    "running",
+		Status:    model.StatusRunning,
 	}
 
 	if pullErr := h.dockerSvc.PullImage(ctx, reqBody.Image); pullErr != nil {
@@ -155,7 +155,7 @@ func toResponse(m *model.Instance) *instanceRes {
 		ID:        m.ID,
 		Name:      m.Name,
 		Subdomain: m.Subdomain,
-		Status:    m.Status,
+		Status:    m.Status.String(),
 	}
 }
 
