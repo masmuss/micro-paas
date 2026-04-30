@@ -16,6 +16,7 @@ func (a *App) setupRoutes(instanceHandler *handler.InstanceHandler) {
 		r.Route("/instances", func(r chi.Router) {
 			r.Get("/", instanceHandler.List)
 			r.Post("/", instanceHandler.Create)
+			r.Delete("/{id}", instanceHandler.Delete)
 		})
 	})
 }

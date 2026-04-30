@@ -7,7 +7,7 @@ pre-commit:
 
     linter:
       glob: "*.go"
-      run: golangci-lint run {staged_files}
+      run: golangci-lint run ./...
 
     tidy:
       run: go mod tidy

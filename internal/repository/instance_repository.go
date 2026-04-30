@@ -2,8 +2,14 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/masmuss/micro-paas/internal/model"
+)
+
+// Sentinel errors for repository operations.
+var (
+	ErrNotFound = errors.New("instance not found")
 )
 
 // InstanceRepository abstracts data access for Instance.

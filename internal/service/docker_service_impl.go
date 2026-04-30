@@ -100,3 +100,40 @@ func (s *DockerServiceImpl) StartContainer(ctx context.Context, containerID stri
 	s.log.InfoContext(ctx, "Container started successfully", "id", containerID)
 	return nil
 }
+
+// StopContainer stops the Docker container with the given ID.
+func (s *DockerServiceImpl) StopContainer(ctx context.Context, containerID string) error {
+	s.log.InfoContext(ctx, "Stopping container", "id", containerID)
+
+	timeout := 10
+	if _, err := s.cli.ContainerStop(ctx, containerID, client.ContainerStopOptions{Timeout: &timeout}); err != nil {
+		return fmt.Errorf("stop container %q: %w", containerID, err)
+	}
+
+	s.log.InfoContext(ctx, "Container stopped successfully", "id", containerID)
+	return nil
+}
+
+// RemoveContainer removes the Docker container with the given ID.
+func (s *DockerServiceImpl) RemoveContainer(ctx context.Context, containerID string) error {
+	s.log.InfoContext(ctx, "Removing container", "id", containerID)
+
+	if _, err := s.cli.ContainerRemove(ctx, containerID, client.ContainerRemoveOptions{Force: true}); err != nil {
+		return fmt.Errorf("remove container %q: %w", containerID, err)
+	}
+
+	s.log.InfoContext(ctx, "Container removed successfully", "id", containerID)
+	return nil
+}
+
+// GetContainerStatus returns the current status of a container.
+func (s *DockerServiceImpl) GetContainerStatus(ctx context.Context, containerID string) (string, error) {
+	inspect, err := s.cli.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
+	if err != nil {
+		return "", fmt.Errorf("inspect container %q: %w", containerID, err)
+	}
+	if inspect.Container.State == nil {
+		return "removed", nil
+	}
+	return string(inspect.Container.State.Status), nil
+}

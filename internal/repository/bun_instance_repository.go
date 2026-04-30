@@ -3,6 +3,8 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -57,7 +59,10 @@ func (r *bunInstanceRepository) GetByContainerID(ctx context.Context, containerI
 	instance := new(model.Instance)
 	err := r.db.NewSelect().Model(instance).Where("container_id = ?", containerID).Scan(ctx)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("get instance by container ID %q: %w", containerID, err)
 	}
 
 	return instance, nil
@@ -70,6 +75,9 @@ func (r *bunInstanceRepository) GetByID(ctx context.Context, id int64) (*model.I
 	instance := new(model.Instance)
 	err := r.db.NewSelect().Model(instance).Where("id = ?", id).Scan(ctx)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("get instance %d: %w", id, err)
 	}
 
@@ -83,6 +91,9 @@ func (r *bunInstanceRepository) GetByName(ctx context.Context, name string) (*mo
 	instance := new(model.Instance)
 	err := r.db.NewSelect().Model(instance).Where("name = ?", name).Scan(ctx)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("get instance by name %q: %w", name, err)
 	}
 
@@ -96,6 +107,9 @@ func (r *bunInstanceRepository) GetBySubdomain(ctx context.Context, subdomain st
 	instance := new(model.Instance)
 	err := r.db.NewSelect().Model(instance).Where("subdomain = ?", subdomain).Scan(ctx)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("get instance by subdomain %q: %w", subdomain, err)
 	}
 
