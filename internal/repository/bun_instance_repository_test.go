@@ -28,6 +28,7 @@ func setupTestDB(t *testing.T) *bun.DB {
 			container_id TEXT UNIQUE,
 			subdomain TEXT UNIQUE NOT NULL,
 			status TEXT DEFAULT 'running',
+			env TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)
@@ -41,7 +42,12 @@ func TestBunInstanceRepository_CreateAndGet(t *testing.T) {
 	repo := NewInstanceRepository(db, slog.Default())
 	ctx := context.Background()
 
-	instance := &model.Instance{Name: "test-app", Subdomain: "test", Status: model.StatusRunning}
+	instance := &model.Instance{
+		Name:      "test-app",
+		Subdomain: "test",
+		Status:    model.StatusRunning,
+		Env:       map[string]string{"FOO": "BAR"},
+	}
 
 	err := repo.Create(ctx, instance)
 	require.NoError(t, err)
@@ -51,6 +57,7 @@ func TestBunInstanceRepository_CreateAndGet(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "test-app", got.Name)
 	assert.Equal(t, "test", got.Subdomain)
+	assert.Equal(t, map[string]string{"FOO": "BAR"}, got.Env)
 }
 
 func TestBunInstanceRepository_GetBySubdomain(t *testing.T) {

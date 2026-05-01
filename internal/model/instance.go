@@ -97,6 +97,8 @@ type Instance struct {
 	Subdomain string `bun:"subdomain,unique" json:"subdomain"`
 	// Status is the current state of the instance.
 	Status Status `bun:"status,default:'running'" json:"status"`
+	// Env stores environment variables for the instance.
+	Env map[string]string `bun:"env,type:jsonb" json:"env"`
 	// CreatedAt is the timestamp when the instance was created.
 	CreatedAt time.Time `bun:"created_at,nullzero,notnull,default:current_timestamp" json:"created_at"`
 	// UpdatedAt is the timestamp when the instance was last updated.

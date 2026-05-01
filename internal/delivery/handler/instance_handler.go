@@ -37,16 +37,18 @@ func NewInstanceHandler(
 }
 
 type createInstanceReq struct {
-	Name      string `json:"name"`
-	Image     string `json:"image"`
-	Subdomain string `json:"subdomain"`
+	Name      string            `json:"name"`
+	Image     string            `json:"image"`
+	Subdomain string            `json:"subdomain"`
+	Env       map[string]string `json:"env"`
 }
 
 type instanceRes struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	Subdomain string `json:"subdomain"`
-	Status    string `json:"status"`
+	ID        int64             `json:"id"`
+	Name      string            `json:"name"`
+	Subdomain string            `json:"subdomain"`
+	Status    string            `json:"status"`
+	Env       map[string]string `json:"env"`
 }
 
 type instancesRes []*instanceRes
@@ -89,6 +91,7 @@ func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Name:      reqBody.Name,
 		Subdomain: reqBody.Subdomain,
 		Status:    model.StatusRunning,
+		Env:       reqBody.Env,
 	}
 
 	if pullErr := h.dockerSvc.PullImage(ctx, reqBody.Image); pullErr != nil {
@@ -104,7 +107,7 @@ func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cID, createContainerErr := h.dockerSvc.CreateContainer(ctx, reqBody.Image, instance.Name)
+	cID, createContainerErr := h.dockerSvc.CreateContainer(ctx, reqBody.Image, instance.Name, instance.Env)
 	if createContainerErr != nil {
 		h.logger.ErrorContext(ctx, "Failed to create container", "error", createContainerErr)
 		if writeErr := response.WriteJSON(
@@ -188,6 +191,7 @@ func toResponse(m *model.Instance) *instanceRes {
 		Name:      m.Name,
 		Subdomain: m.Subdomain,
 		Status:    m.Status.String(),
+		Env:       m.Env,
 	}
 }
 

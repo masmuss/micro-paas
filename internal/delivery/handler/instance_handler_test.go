@@ -21,7 +21,13 @@ func TestCreateInstance_Success(t *testing.T) {
 	handler := NewInstanceHandler(mockDocker, mockRepo, nil)
 
 	mockDocker.On("PullImage", mock.Anything, "nginx:latest").Return(nil)
-	mockDocker.On("CreateContainer", mock.Anything, "nginx:latest", "test-app").Return("container-123", nil)
+	mockDocker.On(
+		"CreateContainer",
+		mock.Anything,
+		"nginx:latest",
+		"test-app",
+		mock.Anything,
+	).Return("container-123", nil)
 	mockDocker.On("StartContainer", mock.Anything, "container-123").Return(nil)
 	mockRepo.On("GetBySubdomain", mock.Anything, "test").Return(nil, repository.ErrNotFound)
 	mockRepo.On("GetByName", mock.Anything, "test-app").Return(nil, repository.ErrNotFound)
@@ -89,7 +95,8 @@ func TestCreateInstance_DockerFailure_Rollback(t *testing.T) {
 	handler := NewInstanceHandler(mockDocker, mockRepo, slog.Default())
 
 	mockDocker.On("PullImage", mock.Anything, "nginx:latest").Return(nil)
-	mockDocker.On("CreateContainer", mock.Anything, "nginx:latest", "test-app").Return("container-123", nil)
+	mockDocker.On("CreateContainer", mock.Anything, "nginx:latest", "test-app", mock.Anything).
+		Return("container-123", nil)
 	mockDocker.On("StartContainer", mock.Anything, "container-123").Return(assert.AnError)
 	mockDocker.On("StopContainer", mock.Anything, "container-123").Return(nil)
 	mockDocker.On("RemoveContainer", mock.Anything, "container-123").Return(nil)

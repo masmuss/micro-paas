@@ -10,7 +10,7 @@ import (
 
 // DockerService defines the interface for interacting with the Docker daemon.
 type DockerService interface {
-	CreateContainer(ctx context.Context, imageName string, containerName string) (string, error)
+	CreateContainer(ctx context.Context, imageName string, containerName string, env map[string]string) (string, error)
 	Ping(ctx context.Context) error
 	PullImage(ctx context.Context, imageName string) error
 	StartContainer(ctx context.Context, containerID string) error

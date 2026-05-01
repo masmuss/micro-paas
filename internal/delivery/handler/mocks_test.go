@@ -15,8 +15,9 @@ func (m *mockDockerService) CreateContainer(
 	ctx context.Context,
 	imageName string,
 	containerName string,
+	env map[string]string,
 ) (string, error) {
-	args := m.Called(ctx, imageName, containerName)
+	args := m.Called(ctx, imageName, containerName, env)
 	return args.String(0), args.Error(1)
 }
 
