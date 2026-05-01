@@ -81,6 +81,8 @@ func main() {
 
 	log.InfoContext(ctx, "Shutting down micro-paas server")
 
+	application.HealthChecker.Stop()
+
 	seconds := 5
 	_, cancel := context.WithTimeout(context.Background(), time.Duration(seconds)*time.Second)
 	defer cancel()

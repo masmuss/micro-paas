@@ -289,9 +289,52 @@ func (h *InstanceHandler) syncStatus(ctx context.Context, instance *model.Instan
 			h.logger.ErrorContext(
 				ctx,
 				"Failed to update instance status",
-				"error",
-				updateInstanceErr,
+				"error", updateInstanceErr,
 			)
 		}
+	}
+}
+
+// GetByID handles retrieving a single instance by ID.
+func (h *InstanceHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		if writeErr := response.WriteJSON(w, http.StatusBadRequest, "Invalid ID", nil); writeErr != nil {
+			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+		}
+		return
+	}
+
+	instance, err := h.repo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			if writeErr := response.WriteJSON(w, http.StatusNotFound, "Instance not found", nil); writeErr != nil {
+				h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+			}
+			return
+		}
+		h.logger.ErrorContext(ctx, "Failed to get instance", "error", err)
+		if writeErr := response.WriteJSON(
+			w,
+			http.StatusInternalServerError,
+			"Internal server error",
+			nil,
+		); writeErr != nil {
+			h.logger.ErrorContext(ctx,
+				"failed to write error response",
+				"error", writeErr,
+			)
+		}
+		return
+	}
+
+	h.syncStatus(ctx, instance)
+
+	res := toResponse(instance)
+	if writeErr := response.WriteJSON(w, http.StatusOK, "Instance retrieved successfully", res); writeErr != nil {
+		h.logger.ErrorContext(ctx, "failed to write success response", "error", writeErr)
 	}
 }

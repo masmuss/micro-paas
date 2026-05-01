@@ -18,11 +18,12 @@ import (
 
 // App is the main application container.
 type App struct {
-	Config *config.Config
-	Logger *slog.Logger
-	DB     *bun.DB
-	Router *chi.Mux
-	Pinger service.DockerService
+	Config        *config.Config
+	Logger        *slog.Logger
+	DB            *bun.DB
+	Router        *chi.Mux
+	Pinger        service.DockerService
+	HealthChecker *service.HealthChecker
 }
 
 // New creates and wires a new App instance. Returns error if dependency setup fails.
@@ -36,12 +37,15 @@ func New(cfg *config.Config, log *slog.Logger, db *bun.DB) (*App, error) {
 	instanceHandler := handler.NewInstanceHandler(dockerSvc, instanceRepo, log)
 	r := chi.NewRouter()
 
+	healthChecker := service.NewHealthChecker(dockerSvc, instanceRepo, log, 30*time.Second)
+
 	app := &App{
-		Config: cfg,
-		Logger: log,
-		DB:     db,
-		Router: r,
-		Pinger: dockerSvc,
+		Config:        cfg,
+		Logger:        log,
+		DB:            db,
+		Router:        r,
+		Pinger:        dockerSvc,
+		HealthChecker: healthChecker,
 	}
 
 	app.setupRoutes(instanceHandler)
@@ -58,6 +62,8 @@ func (a *App) Start(ctx context.Context) error {
 	if err := a.Pinger.Ping(ctx); err != nil {
 		return fmt.Errorf("ping docker daemon during startup: %w", err)
 	}
+
+	a.HealthChecker.Start(ctx)
 
 	a.Logger.InfoContext(ctx, "Server is starting", "port", a.Config.ServerPort)
 

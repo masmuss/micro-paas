@@ -9,5 +9,9 @@ pre-commit:
       glob: "*.go"
       run: golangci-lint run ./...
 
+    test:
+      glob: "*.go"
+      run: go test ./...
+
     tidy:
       run: go mod tidy
