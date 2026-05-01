@@ -6,11 +6,15 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/masmuss/micro-paas/internal/config"
+	"github.com/masmuss/micro-paas/internal/database"
 	"github.com/masmuss/micro-paas/internal/delivery/handler"
+	"github.com/masmuss/micro-paas/internal/logger"
+	"github.com/masmuss/micro-paas/internal/model"
 	"github.com/masmuss/micro-paas/internal/repository"
 	"github.com/masmuss/micro-paas/internal/service"
 	"github.com/uptrace/bun"
@@ -25,6 +29,28 @@ type App struct {
 	Router        *chi.Mux
 	Pinger        service.DockerService
 	HealthChecker *service.HealthChecker
+}
+
+// Bootstrap handles the initial setup (config, db, migrations) shared by all entry points.
+func Bootstrap(ctx context.Context) (*config.Config, *slog.Logger, *bun.DB, error) {
+	log := logger.New(os.Getenv("APP_ENV") == "development")
+
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("load config: %w", err)
+	}
+
+	db, err := database.NewBunDB(cfg.DBDriver, cfg.DBDsn)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("connect db: %w", err)
+	}
+
+	_, err = db.NewCreateTable().Model((*model.Instance)(nil)).IfNotExists().Exec(ctx)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("migrate: %w", err)
+	}
+
+	return cfg, log, db, nil
 }
 
 // New creates and wires a new App instance. Returns error if dependency setup fails.
