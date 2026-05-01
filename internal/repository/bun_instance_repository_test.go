@@ -27,6 +27,7 @@ func setupTestDB(t *testing.T) *bun.DB {
 			name TEXT UNIQUE NOT NULL,
 			container_id TEXT UNIQUE,
 			subdomain TEXT UNIQUE NOT NULL,
+			port INTEGER DEFAULT 80,
 			status TEXT DEFAULT 'running',
 			env TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -45,6 +46,7 @@ func TestBunInstanceRepository_CreateAndGet(t *testing.T) {
 	instance := &model.Instance{
 		Name:      "test-app",
 		Subdomain: "test",
+		Port:      8080,
 		Status:    model.StatusRunning,
 		Env:       map[string]string{"FOO": "BAR"},
 	}
@@ -57,6 +59,7 @@ func TestBunInstanceRepository_CreateAndGet(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "test-app", got.Name)
 	assert.Equal(t, "test", got.Subdomain)
+	assert.Equal(t, 8080, got.Port)
 	assert.Equal(t, map[string]string{"FOO": "BAR"}, got.Env)
 }
 

@@ -40,6 +40,7 @@ type createInstanceReq struct {
 	Name      string            `json:"name"`
 	Image     string            `json:"image"`
 	Subdomain string            `json:"subdomain"`
+	Port      int               `json:"port"`
 	Env       map[string]string `json:"env"`
 }
 
@@ -47,6 +48,7 @@ type instanceRes struct {
 	ID        int64             `json:"id"`
 	Name      string            `json:"name"`
 	Subdomain string            `json:"subdomain"`
+	Port      int               `json:"port"`
 	Status    string            `json:"status"`
 	Env       map[string]string `json:"env"`
 }
@@ -90,8 +92,13 @@ func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 	instance := &model.Instance{
 		Name:      reqBody.Name,
 		Subdomain: reqBody.Subdomain,
+		Port:      reqBody.Port,
 		Status:    model.StatusRunning,
 		Env:       reqBody.Env,
+	}
+
+	if instance.Port == 0 {
+		instance.Port = 80
 	}
 
 	if pullErr := h.dockerSvc.PullImage(ctx, reqBody.Image); pullErr != nil {
@@ -190,6 +197,7 @@ func toResponse(m *model.Instance) *instanceRes {
 		ID:        m.ID,
 		Name:      m.Name,
 		Subdomain: m.Subdomain,
+		Port:      m.Port,
 		Status:    m.Status.String(),
 		Env:       m.Env,
 	}
