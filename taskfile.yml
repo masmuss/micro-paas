@@ -11,12 +11,7 @@ tasks:
   server:
     desc: Run the API server with hot reload using air
     cmds:
-      - air -- -server
-
-  tui:
-    desc: Run the Terminal UI
-    cmds:
-      - go run ./cmd/tui
+      - air
 
   lint:
     desc: Run golangci-lint
@@ -33,14 +28,9 @@ tasks:
     cmds:
       - go build -o bin/paas-server ./cmd/server
 
-  build:tui:
-    desc: Build the TUI binary
-    cmds:
-      - go build -o bin/paas-tui ./cmd/tui
-
   build:
     desc: Build all binaries
-    deps: [build:server, build:tui]
+    deps: [build:server]
 
   format:
     desc: Format all Go files using gofmt

@@ -34,7 +34,13 @@ db_dsn: "./micro-paas.db"
 ### 2. Run the Application
 
 ```bash
-go run cmd/main.go
+go run ./cmd/server
+```
+
+or using Task:
+
+```bash
+task server
 ```
 
 The management API will be available at `http://localhost:8080/api`.
