@@ -99,6 +99,19 @@ func (h *HealthChecker) checkInstance(ctx context.Context, instance *model.Insta
 			"old", instance.Status,
 			"new", newStatus,
 		)
+
+		// Auto-restart if it was running but now stopped
+		if newStatus == model.StatusStopped && instance.Status == model.StatusRunning {
+			h.logger.InfoContext(ctx, "Attempting auto-restart", "instance_id", instance.ID)
+			if startContainerErr := h.dockerSvc.StartContainer(ctx, instance.ContainerID); startContainerErr != nil {
+				h.logger.ErrorContext(ctx, "Auto-restart failed", "error", startContainerErr)
+				newStatus = model.StatusError
+			} else {
+				h.logger.InfoContext(ctx, "Auto-restart successful", "instance_id", instance.ID)
+				newStatus = model.StatusRunning
+			}
+		}
+
 		instance.Status = newStatus
 		if updateErr := h.repo.Update(ctx, instance); updateErr != nil {
 			h.logger.ErrorContext(ctx, "Failed to update instance status", "error", updateErr)

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"io"
 
 	"github.com/masmuss/micro-paas/internal/model"
 	"github.com/stretchr/testify/mock"
@@ -49,6 +50,15 @@ func (m *mockDockerService) RemoveContainer(ctx context.Context, containerID str
 func (m *mockDockerService) GetContainerStatus(ctx context.Context, containerID string) (string, error) {
 	args := m.Called(ctx, containerID)
 	return args.String(0), args.Error(1)
+}
+
+func (m *mockDockerService) GetContainerLogs(ctx context.Context, containerID string) (io.ReadCloser, error) {
+	args := m.Called(ctx, containerID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	rc, _ := args.Get(0).(io.ReadCloser)
+	return rc, args.Error(1)
 }
 
 type mockInstanceRepository struct {

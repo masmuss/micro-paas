@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"io"
 	"log/slog"
 
 	"github.com/masmuss/micro-paas/internal/config"
@@ -17,6 +18,7 @@ type DockerService interface {
 	StopContainer(ctx context.Context, containerID string) error
 	RemoveContainer(ctx context.Context, containerID string) error
 	GetContainerStatus(ctx context.Context, containerID string) (string, error)
+	GetContainerLogs(ctx context.Context, containerID string) (io.ReadCloser, error)
 }
 
 // NewDockerService creates a new DockerService using the provided configuration and logger.

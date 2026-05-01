@@ -4,18 +4,24 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/masmuss/micro-paas/internal/delivery/handler"
+	paasMiddleware "github.com/masmuss/micro-paas/internal/delivery/middleware"
 )
 
 func (a *App) setupRoutes(instanceHandler *handler.InstanceHandler) {
+	proxy := paasMiddleware.NewInstanceProxy(a.Repo, a.Logger)
+
 	a.Router.Use(middleware.RequestID)
 	a.Router.Use(middleware.RealIP)
 	a.Router.Use(middleware.Logger)
 	a.Router.Use(middleware.Recoverer)
+	a.Router.Use(proxy.Handler)
 
 	a.Router.Route("/api", func(r chi.Router) {
 		r.Route("/instances", func(r chi.Router) {
 			r.Get("/", instanceHandler.List)
 			r.Post("/", instanceHandler.Create)
+			r.Get("/{id}", instanceHandler.GetByID)
+			r.Get("/{id}/logs", instanceHandler.Logs)
 			r.Delete("/{id}", instanceHandler.Delete)
 		})
 	})

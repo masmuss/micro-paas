@@ -21,6 +21,7 @@ type App struct {
 	Config        *config.Config
 	Logger        *slog.Logger
 	DB            *bun.DB
+	Repo          repository.InstanceRepository
 	Router        *chi.Mux
 	Pinger        service.DockerService
 	HealthChecker *service.HealthChecker
@@ -43,6 +44,7 @@ func New(cfg *config.Config, log *slog.Logger, db *bun.DB) (*App, error) {
 		Config:        cfg,
 		Logger:        log,
 		DB:            db,
+		Repo:          instanceRepo,
 		Router:        r,
 		Pinger:        dockerSvc,
 		HealthChecker: healthChecker,

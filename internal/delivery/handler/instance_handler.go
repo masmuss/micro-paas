@@ -4,6 +4,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -348,5 +349,41 @@ func (h *InstanceHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	res := toResponse(instance)
 	if writeErr := response.WriteJSON(w, http.StatusOK, "Instance retrieved successfully", res); writeErr != nil {
 		h.logger.ErrorContext(ctx, "failed to write success response", "error", writeErr)
+	}
+}
+
+// Logs handles retrieving the logs for an instance.
+func (h *InstanceHandler) Logs(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	instance, err := h.repo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			http.Error(w, "Instance not found", http.StatusNotFound)
+			return
+		}
+		h.logger.ErrorContext(ctx, "Failed to get instance", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	reader, err := h.dockerSvc.GetContainerLogs(ctx, instance.ContainerID)
+	if err != nil {
+		h.logger.ErrorContext(ctx, "Failed to get logs", "error", err)
+		http.Error(w, "Failed to get logs", http.StatusInternalServerError)
+		return
+	}
+	defer reader.Close()
+
+	w.Header().Set("Content-Type", "text/plain")
+	if _, ioCopyErr := io.Copy(w, reader); ioCopyErr != nil {
+		h.logger.ErrorContext(ctx, "Failed to copy logs to response", "error", ioCopyErr)
 	}
 }

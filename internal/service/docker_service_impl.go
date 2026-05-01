@@ -145,3 +145,16 @@ func (s *DockerServiceImpl) GetContainerStatus(ctx context.Context, containerID 
 	}
 	return string(inspect.Container.State.Status), nil
 }
+
+// GetContainerLogs returns a stream of the container's logs.
+func (s *DockerServiceImpl) GetContainerLogs(ctx context.Context, containerID string) (io.ReadCloser, error) {
+	options := client.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     false,
+		Timestamps: true,
+		Tail:       "100",
+	}
+
+	return s.cli.ContainerLogs(ctx, containerID, options)
+}
