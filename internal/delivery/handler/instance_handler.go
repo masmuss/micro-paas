@@ -4,6 +4,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -37,16 +38,20 @@ func NewInstanceHandler(
 }
 
 type createInstanceReq struct {
-	Name      string `json:"name"`
-	Image     string `json:"image"`
-	Subdomain string `json:"subdomain"`
+	Name      string            `json:"name"`
+	Image     string            `json:"image"`
+	Subdomain string            `json:"subdomain"`
+	Port      int               `json:"port"`
+	Env       map[string]string `json:"env"`
 }
 
 type instanceRes struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	Subdomain string `json:"subdomain"`
-	Status    string `json:"status"`
+	ID        int64             `json:"id"`
+	Name      string            `json:"name"`
+	Subdomain string            `json:"subdomain"`
+	Port      int               `json:"port"`
+	Status    string            `json:"status"`
+	Env       map[string]string `json:"env"`
 }
 
 type instancesRes []*instanceRes
@@ -88,7 +93,13 @@ func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 	instance := &model.Instance{
 		Name:      reqBody.Name,
 		Subdomain: reqBody.Subdomain,
+		Port:      reqBody.Port,
 		Status:    model.StatusRunning,
+		Env:       reqBody.Env,
+	}
+
+	if instance.Port == 0 {
+		instance.Port = 80
 	}
 
 	if pullErr := h.dockerSvc.PullImage(ctx, reqBody.Image); pullErr != nil {
@@ -104,7 +115,7 @@ func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cID, createContainerErr := h.dockerSvc.CreateContainer(ctx, reqBody.Image, instance.Name)
+	cID, createContainerErr := h.dockerSvc.CreateContainer(ctx, reqBody.Image, instance.Name, instance.Env)
 	if createContainerErr != nil {
 		h.logger.ErrorContext(ctx, "Failed to create container", "error", createContainerErr)
 		if writeErr := response.WriteJSON(
@@ -187,7 +198,9 @@ func toResponse(m *model.Instance) *instanceRes {
 		ID:        m.ID,
 		Name:      m.Name,
 		Subdomain: m.Subdomain,
+		Port:      m.Port,
 		Status:    m.Status.String(),
+		Env:       m.Env,
 	}
 }
 
@@ -336,5 +349,41 @@ func (h *InstanceHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	res := toResponse(instance)
 	if writeErr := response.WriteJSON(w, http.StatusOK, "Instance retrieved successfully", res); writeErr != nil {
 		h.logger.ErrorContext(ctx, "failed to write success response", "error", writeErr)
+	}
+}
+
+// Logs handles retrieving the logs for an instance.
+func (h *InstanceHandler) Logs(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	instance, err := h.repo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			http.Error(w, "Instance not found", http.StatusNotFound)
+			return
+		}
+		h.logger.ErrorContext(ctx, "Failed to get instance", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	reader, err := h.dockerSvc.GetContainerLogs(ctx, instance.ContainerID)
+	if err != nil {
+		h.logger.ErrorContext(ctx, "Failed to get logs", "error", err)
+		http.Error(w, "Failed to get logs", http.StatusInternalServerError)
+		return
+	}
+	defer reader.Close()
+
+	w.Header().Set("Content-Type", "text/plain")
+	if _, ioCopyErr := io.Copy(w, reader); ioCopyErr != nil {
+		h.logger.ErrorContext(ctx, "Failed to copy logs to response", "error", ioCopyErr)
 	}
 }

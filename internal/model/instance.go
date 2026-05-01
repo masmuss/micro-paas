@@ -95,8 +95,12 @@ type Instance struct {
 	ContainerID string `bun:"container_id,unique" json:"container_id"`
 	// Subdomain is the unique subdomain assigned for routing to this instance.
 	Subdomain string `bun:"subdomain,unique" json:"subdomain"`
+	// Port is the internal port the container is listening on.
+	Port int `bun:"port,default:80" json:"port"`
 	// Status is the current state of the instance.
 	Status Status `bun:"status,default:'running'" json:"status"`
+	// Env stores environment variables for the instance.
+	Env map[string]string `bun:"env,type:jsonb" json:"env"`
 	// CreatedAt is the timestamp when the instance was created.
 	CreatedAt time.Time `bun:"created_at,nullzero,notnull,default:current_timestamp" json:"created_at"`
 	// UpdatedAt is the timestamp when the instance was last updated.

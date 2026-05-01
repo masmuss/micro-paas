@@ -38,13 +38,21 @@ func (s *DockerServiceImpl) CreateContainer(
 	ctx context.Context,
 	imageName string,
 	containerName string,
+	env map[string]string,
 ) (string, error) {
 	s.log.InfoContext(ctx, "Creating container", "name", containerName)
 
+	var envList []string
+	for k, v := range env {
+		envList = append(envList, fmt.Sprintf("%s=%s", k, v))
+	}
+
 	resp, containerCreateErr := s.cli.ContainerCreate(ctx, client.ContainerCreateOptions{
-		Image:      imageName,
-		HostConfig: &container.HostConfig{},
-		Name:       containerName,
+		Name:  containerName,
+		Image: imageName,
+		Config: &container.Config{
+			Env: envList,
+		},
 	})
 	if containerCreateErr != nil {
 		return "", fmt.Errorf("create container %q: %w", containerName, containerCreateErr)
@@ -136,4 +144,17 @@ func (s *DockerServiceImpl) GetContainerStatus(ctx context.Context, containerID 
 		return "removed", nil
 	}
 	return string(inspect.Container.State.Status), nil
+}
+
+// GetContainerLogs returns a stream of the container's logs.
+func (s *DockerServiceImpl) GetContainerLogs(ctx context.Context, containerID string) (io.ReadCloser, error) {
+	options := client.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     false,
+		Timestamps: true,
+		Tail:       "100",
+	}
+
+	return s.cli.ContainerLogs(ctx, containerID, options)
 }
