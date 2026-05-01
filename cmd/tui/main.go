@@ -24,7 +24,14 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	cfg, logger, db, err := app.Bootstrap(ctx)
+	// Redirect slog and other system logs to a file to avoid TUI corruption
+	logFile, err := os.OpenFile("tui.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		return fmt.Errorf("open log file: %w", err)
+	}
+	defer logFile.Close()
+
+	cfg, logger, db, err := app.Bootstrap(ctx, logFile)
 	if err != nil {
 		return fmt.Errorf("bootstrap failed: %w", err)
 	}

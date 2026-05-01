@@ -3,9 +3,7 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -22,33 +20,28 @@ func main() {
 }
 
 func run() error {
+	// 1. Create a parent context that listens for termination signals
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	cfg, logger, db, err := app.Bootstrap(ctx)
+	// 2. Initialize core dependencies
+	cfg, logger, db, err := app.Bootstrap(ctx, os.Stdout)
 	if err != nil {
 		return fmt.Errorf("bootstrap failed: %w", err)
 	}
 
+	// Optional debug hooks
 	db.AddQueryHook(bundebug.NewQueryHook(
 		bundebug.WithVerbose(true),
 		bundebug.FromEnv(""),
 	))
 
+	// Initialize Application
 	application, err := app.New(cfg, logger, db)
 	if err != nil {
 		return fmt.Errorf("create application: %w", err)
 	}
 
-	go func() {
-		if startErr := application.Start(ctx); startErr != nil && !errors.Is(startErr, http.ErrServerClosed) {
-			logger.ErrorContext(ctx, "Failed to start server", "error", startErr)
-			stop()
-		}
-	}()
-
-	<-ctx.Done()
-	logger.InfoContext(ctx, "Shutting down server...")
-	application.HealthChecker.Stop()
-	return nil
+	// Start the server
+	return application.Start(ctx)
 }

@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -32,8 +33,8 @@ type App struct {
 }
 
 // Bootstrap handles the initial setup (config, db, migrations) shared by all entry points.
-func Bootstrap(ctx context.Context) (*config.Config, *slog.Logger, *bun.DB, error) {
-	log := logger.New(os.Getenv("APP_ENV") == "development")
+func Bootstrap(ctx context.Context, logWriter io.Writer) (*config.Config, *slog.Logger, *bun.DB, error) {
+	log := logger.New(os.Getenv("APP_ENV") == "development", logWriter)
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
@@ -81,19 +82,19 @@ func New(cfg *config.Config, log *slog.Logger, db *bun.DB) (*App, error) {
 	return app, nil
 }
 
-// Start runs the HTTP server and pings Docker daemon before serving.
+// Start runs the HTTP server with graceful shutdown support.
 func (a *App) Start(ctx context.Context) error {
 	const (
-		rwTimeoutSec   = 10
-		idleTimeoutSec = 60
+		rwTimeoutSec    = 10
+		idleTimeoutSec  = 60
+		shutdownTimeout = 5 * time.Second
 	)
+
 	if err := a.Pinger.Ping(ctx); err != nil {
 		return fmt.Errorf("ping docker daemon during startup: %w", err)
 	}
 
 	a.HealthChecker.Start(ctx)
-
-	a.Logger.InfoContext(ctx, "Server is starting", "port", a.Config.ServerPort)
 
 	srv := &http.Server{
 		Addr:         ":" + a.Config.ServerPort,
@@ -102,5 +103,41 @@ func (a *App) Start(ctx context.Context) error {
 		WriteTimeout: time.Duration(rwTimeoutSec) * time.Second,
 		IdleTimeout:  time.Duration(idleTimeoutSec) * time.Second,
 	}
-	return srv.ListenAndServe()
+
+	// Channel to listen for errors from ListenAndServe
+	serverErrors := make(chan error, 1)
+
+	go func() {
+		a.Logger.InfoContext(ctx, "Server is starting", "port", a.Config.ServerPort)
+		serverErrors <- srv.ListenAndServe()
+	}()
+
+	// Blocking select to wait for shutdown signal or server error
+	select {
+	case err := <-serverErrors:
+		return fmt.Errorf("server error: %w", err)
+
+	case <-ctx.Done():
+		a.Logger.InfoContext(ctx, "Graceful shutdown initiated...")
+
+		a.HealthChecker.Stop()
+
+		// Create a separate context for shutdown to ensure it has time to finish
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			// If shutdown fails, force close
+			_ = srv.Close()
+			return fmt.Errorf("could not stop server gracefully: %w", err)
+		}
+
+		if err := a.DB.Close(); err != nil {
+			return fmt.Errorf("could not close database: %w", err)
+		}
+
+		a.Logger.InfoContext(ctx, "Server stopped gracefully")
+	}
+
+	return nil
 }
