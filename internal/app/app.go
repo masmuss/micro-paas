@@ -30,6 +30,7 @@ type App struct {
 	Router        *chi.Mux
 	Pinger        service.DockerService
 	HealthChecker *service.HealthChecker
+	UIHandler     *handler.UIHandler
 }
 
 // Bootstrap handles the initial setup (config, db, migrations) shared by all entry points.
@@ -63,6 +64,7 @@ func New(cfg *config.Config, log *slog.Logger, db *bun.DB) (*App, error) {
 	}
 
 	instanceHandler := handler.NewInstanceHandler(dockerSvc, instanceRepo, log)
+	uiHandler := handler.NewUIHandler(instanceRepo, dockerSvc)
 	r := chi.NewRouter()
 
 	healthChecker := service.NewHealthChecker(dockerSvc, instanceRepo, log, 30*time.Second)
@@ -75,9 +77,10 @@ func New(cfg *config.Config, log *slog.Logger, db *bun.DB) (*App, error) {
 		Router:        r,
 		Pinger:        dockerSvc,
 		HealthChecker: healthChecker,
+		UIHandler:     uiHandler,
 	}
 
-	app.setupRoutes(instanceHandler)
+	app.setupRoutes(instanceHandler, uiHandler)
 
 	return app, nil
 }

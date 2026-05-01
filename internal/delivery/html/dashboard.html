@@ -1,0 +1,121 @@
+{{define "content"}}
+<hgroup>
+    <h2>Dashboard</h2>
+    <p>Manage your micro-services</p>
+</hgroup>
+
+<div id="instances-table" hx-get="/ui/instances-table" hx-trigger="load">
+    <div aria-busy="true">Loading instances...</div>
+</div>
+
+<!-- Modal Placeholder -->
+<div id="modal-container"></div>
+
+<script>
+    function closeModal() {
+        const modal = document.getElementById("logs-modal");
+        if (modal) modal.removeAttribute("open");
+    }
+</script>
+{{end}} {{define "instances-table"}}
+<figure>
+    <table class="striped">
+        <thead>
+            <tr>
+                <th scope="col">Instance</th>
+                <th scope="col">Status</th>
+                <th scope="col">Endpoint</th>
+                <th scope="col" style="text-align: right">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Instances}}
+            <tr>
+                <td>
+                    <strong>{{.Name}}</strong><br />
+                    <small style="font-family: monospace; color: var(--pico-muted-color)"
+                        >{{slice .ContainerID 0 12}}</small
+                    >
+                </td>
+                <td>
+                    {{if eq .Status.String "running"}}
+                    <mark class="status-badge status-running">Running</mark>
+                    {{else}}
+                    <mark class="status-badge status-stopped">Stopped</mark>
+                    {{end}}
+                </td>
+                <td>
+                    <a href="http://{{.Subdomain}}.localhost:8080" target="_blank" style="font-family: monospace">
+                        {{.Subdomain}}.localhost
+                    </a>
+                </td>
+                <td style="text-align: right">
+                    <div role="group">
+                        {{if eq .Status.String "running"}}
+                        <button
+                            hx-post="/ui/instances/{{.ID}}/stop"
+                            hx-target="#instances-table"
+                            hx-swap="innerHTML"
+                            class="outline secondary"
+                            style="padding: 2px 8px; font-size: 0.8em"
+                        >
+                            Stop
+                        </button>
+                        {{else}}
+                        <button
+                            hx-post="/ui/instances/{{.ID}}/start"
+                            hx-target="#instances-table"
+                            hx-swap="innerHTML"
+                            class="outline"
+                            style="padding: 2px 8px; font-size: 0.8em"
+                        >
+                            Start
+                        </button>
+                        {{end}}
+                        <button
+                            hx-get="/ui/instances/{{.ID}}/logs"
+                            hx-target="#modal-container"
+                            class="outline secondary"
+                            style="padding: 2px 8px; font-size: 0.8em"
+                        >
+                            Logs
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {{else}}
+            <tr>
+                <td colspan="4" style="text-align: center; color: var(--pico-muted-color)">
+                    <p>No instances found. Create one via API to get started.</p>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</figure>
+{{end}} {{define "logs-content"}}
+<dialog id="logs-modal" open>
+    <article style="width: 80vw; max-width: 1000px">
+        <header>
+            <button aria-label="Close" rel="prev" onclick="closeModal()"></button>
+            <p><strong>📝 Logs: {{.Name}}</strong></p>
+        </header>
+        <pre
+            style="
+                max-height: 60vh;
+                overflow-y: auto;
+                font-size: 0.85em;
+                background: #000;
+                color: #fff;
+                padding: 1rem;
+                border-radius: 4px;
+            "
+        >
+{{if .Logs}}{{.Logs}}{{else}}No logs available.{{end}}</pre
+        >
+        <footer>
+            <button class="secondary" onclick="closeModal()">Close</button>
+        </footer>
+    </article>
+</dialog>
+{{end}}
