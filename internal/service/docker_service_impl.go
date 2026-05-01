@@ -40,22 +40,24 @@ func (s *DockerServiceImpl) CreateContainer(
 	containerName string,
 	env map[string]string,
 ) (string, error) {
-	s.log.InfoContext(ctx, "Creating container", "name", containerName)
+	s.log.InfoContext(ctx, "Creating container", "name", containerName, "image", imageName)
 
 	var envList []string
 	for k, v := range env {
 		envList = append(envList, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	resp, containerCreateErr := s.cli.ContainerCreate(ctx, client.ContainerCreateOptions{
-		Name:  containerName,
-		Image: imageName,
+	options := client.ContainerCreateOptions{
+		Name: containerName,
 		Config: &container.Config{
-			Env: envList,
+			Image: imageName,
+			Env:   envList,
 		},
-	})
-	if containerCreateErr != nil {
-		return "", fmt.Errorf("create container %q: %w", containerName, containerCreateErr)
+	}
+
+	resp, err := s.cli.ContainerCreate(ctx, options)
+	if err != nil {
+		return "", fmt.Errorf("create container %q: %w", containerName, err)
 	}
 
 	s.log.InfoContext(ctx, "Container created successfully", "id", resp.ID)

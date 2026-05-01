@@ -1,0 +1,73 @@
+{{define "layout"}}
+<!doctype html>
+<html lang="en" data-theme="dark">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Micro PaaS Dashboard</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.indigo.min.css" />
+        <script src="https://unpkg.com/htmx.org@2.0.0"></script>
+        <style>
+            :root {
+                --pico-font-size: 14px;
+            }
+            .htmx-indicator {
+                display: none;
+            }
+            .htmx-request .htmx-indicator {
+                display: inline;
+            }
+            .status-badge {
+                padding: 2px 8px;
+                border-radius: 4px;
+                font-size: 0.8em;
+                font-weight: bold;
+            }
+            .status-running {
+                background-color: #1a3a1a;
+                color: #4ade80;
+                border: 1px solid #14532d;
+            }
+            .status-stopped {
+                background-color: #3a1a1a;
+                color: #f87171;
+                border: 1px solid #7f1d1d;
+            }
+        </style>
+    </head>
+    <body>
+        <header class="container">
+            <nav>
+                <ul>
+                    <li><strong>🚀 Micro PaaS</strong></li>
+                </ul>
+                <ul>
+                    <li><small id="system-status" style="color: var(--pico-ins-color)">● System Online</small></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main class="container">
+            {{template "content" .}}
+        </main>
+
+        <div id="toast" style="display: none; position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; background: var(--pico-primary-background); color: var(--pico-primary-inverse); box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000;">
+        </div>
+
+        <script>
+            document.body.addEventListener('showToast', function(evt) {
+                const toast = document.getElementById('toast');
+                toast.innerText = evt.detail.value;
+                toast.style.display = 'block';
+                setTimeout(() => {
+                    toast.style.display = 'none';
+                }, 3000);
+            });
+        </script>
+
+        <footer class="container">
+            <small>Built with Go, HTMX & Pico.css</small>
+        </footer>
+    </body>
+</html>
+{{end}}
