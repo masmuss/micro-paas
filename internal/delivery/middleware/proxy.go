@@ -29,18 +29,31 @@ func NewInstanceProxy(repo repository.InstanceRepository, logger *slog.Logger) *
 // Handler is the middleware handler that proxies requests to the appropriate container.
 func (p *InstanceProxy) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Always bypass API requests
+		if strings.HasPrefix(r.URL.Path, "/api") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		host := strings.ToLower(r.Host)
+		// Remove port if present (e.g., localhost:8080 -> localhost)
+		if h, _, err := net.SplitHostPort(host); err == nil {
+			host = h
+		}
+
 		subdomain := extractSubdomain(host)
 		if subdomain == "" {
 			next.ServeHTTP(w, r)
 			return
 		}
+
 		instance, err := p.repo.GetBySubdomain(r.Context(), subdomain)
 		if err != nil {
 			p.logger.Error("instance not found", "subdomain", subdomain, "error", err)
 			http.NotFound(w, r)
 			return
 		}
+
 		if instance.Status != model.StatusRunning {
 			p.logger.Warn("instance not running", "instance", instance.Name, "status", instance.Status)
 			http.Error(w, "Instance not running", http.StatusServiceUnavailable)
@@ -80,9 +93,17 @@ func (p *InstanceProxy) Handler(next http.Handler) http.Handler {
 }
 
 func extractSubdomain(host string) string {
-	parts := strings.Split(host, ".")
-	if len(parts) < 3 {
+	// If it's just localhost or an IP, no subdomain
+	if host == "localhost" || net.ParseIP(host) != nil {
 		return ""
 	}
+
+	parts := strings.Split(host, ".")
+	if len(parts) < 2 {
+		return ""
+	}
+
+	// For localhost testing: web.localhost (len 2) -> "web"
+	// For production: app.example.com (len 3) -> "app"
 	return parts[0]
 }

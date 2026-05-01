@@ -8,8 +8,8 @@ tasks:
     cmds:
       - task --list
 
-  dev:
-    desc: Run the app with hot reload using air
+  server:
+    desc: Run the API server with hot reload using air
     cmds:
       - air
 
@@ -23,10 +23,14 @@ tasks:
     cmds:
       - go test -v -race ./...
 
-  build:
-    desc: Build the binary
+  build:server:
+    desc: Build the server binary
     cmds:
-      - go build -o bin/orchestrator cmd/main.go
+      - go build -o bin/paas-server ./cmd/server
+
+  build:
+    desc: Build all binaries
+    deps: [build:server]
 
   format:
     desc: Format all Go files using gofmt
@@ -38,11 +42,6 @@ tasks:
     cmds:
       - go mod tidy
       - go mod verify
-
-  docker:ls:
-    desc: Helper to list running containers (shortcut)
-    cmds:
-      - docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}"
 
   clean:
     desc: Remove build artifacts

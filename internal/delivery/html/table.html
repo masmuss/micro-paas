@@ -1,0 +1,86 @@
+{{define "instances-table"}}
+<figure>
+    <table class="striped">
+        <thead>
+            <tr>
+                <th scope="col">Instance</th>
+                <th scope="col">Status</th>
+                <th scope="col">Endpoint</th>
+                <th scope="col" style="text-align: right">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Instances}}
+            <tr>
+                <td>
+                    <strong>{{.Name}}</strong><br />
+                    <small style="font-family: monospace; color: var(--pico-muted-color)"
+                        >{{slice .ContainerID 0 12}}</small
+                    >
+                </td>
+                <td>
+                    {{if eq .Status.String "running"}}
+                    <mark class="status-badge status-running">Running</mark>
+                    {{else}}
+                    <mark class="status-badge status-stopped">Stopped</mark>
+                    {{end}}
+                </td>
+                <td>
+                    <a href="http://{{.Subdomain}}.localhost:8080" target="_blank" style="font-family: monospace">
+                        {{.Subdomain}}.localhost
+                    </a>
+                </td>
+                <td style="text-align: right">
+                    <div role="group">
+                        {{if eq .Status.String "running"}}
+                        <button
+                            hx-post="/ui/instances/{{.ID}}/stop"
+                            hx-target="#instances-table"
+                            hx-swap="innerHTML"
+                            class="outline secondary"
+                            style="padding: 2px 8px; font-size: 0.8em"
+                        >
+                            Stop
+                        </button>
+                        {{else}}
+                        <button
+                            hx-post="/ui/instances/{{.ID}}/start"
+                            hx-target="#instances-table"
+                            hx-swap="innerHTML"
+                            class="outline"
+                            style="padding: 2px 8px; font-size: 0.8em"
+                        >
+                            Start
+                        </button>
+                        {{end}}
+                        <button
+                            hx-get="/ui/instances/{{.ID}}/logs"
+                            hx-target="#modal-container"
+                            class="outline secondary"
+                            style="padding: 2px 8px; font-size: 0.8em"
+                        >
+                            Logs
+                        </button>
+                        <button
+                            hx-delete="/ui/instances/{{.ID}}"
+                            hx-target="#instances-table"
+                            hx-confirm="Are you sure you want to delete this instance and its container?"
+                            class="outline contrast"
+                            style="padding: 2px 8px; font-size: 0.8em"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {{else}}
+            <tr>
+                <td colspan="4" style="text-align: center; color: var(--pico-muted-color)">
+                    <p>No instances found. Create one to get started.</p>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</figure>
+{{end}}

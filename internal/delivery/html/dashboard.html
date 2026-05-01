@@ -1,0 +1,48 @@
+{{define "content"}}
+<div style="display: flex; justify-content: space-between; align-items: flex-end">
+    <hgroup>
+        <h2>Dashboard</h2>
+        <p>Manage your micro-services</p>
+    </hgroup>
+    <button onclick="openCreateModal()" style="margin-bottom: var(--pico-spacing); font-size: 0.9em">
+        + New Instance
+    </button>
+</div>
+
+<div id="instances-table" hx-get="/ui/instances-table" hx-trigger="load">
+    <div aria-busy="true">Loading instances...</div>
+</div>
+
+<!-- Modal Placeholders -->
+<div id="modal-container"></div>
+{{template "create-modal" .}}
+
+<script>
+    // Loading indicator for create button
+    document.body.addEventListener('htmx:beforeRequest', function(evt) {
+        if (evt.detail.elt.id === 'submit-btn') {
+            evt.detail.elt.setAttribute('aria-busy', 'true');
+            evt.detail.elt.innerText = 'Creating...';
+        }
+    });
+    document.body.addEventListener('htmx:afterRequest', function(evt) {
+        if (evt.detail.elt.id === 'submit-btn') {
+            evt.detail.elt.removeAttribute('aria-busy');
+            evt.detail.elt.innerText = 'Create Instance';
+        }
+    });
+
+    // Modal controls
+    function closeModal() {
+        const modal = document.getElementById("logs-modal");
+        if (modal) modal.removeAttribute("open");
+    }
+    function openCreateModal() {
+        document.getElementById("create-modal").setAttribute("open", "true");
+    }
+    function closeCreateModal() {
+        document.getElementById("create-modal").removeAttribute("open");
+        document.querySelector("#create-modal form").reset();
+    }
+</script>
+{{end}}

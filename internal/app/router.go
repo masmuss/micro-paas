@@ -7,7 +7,7 @@ import (
 	paasMiddleware "github.com/masmuss/micro-paas/internal/delivery/middleware"
 )
 
-func (a *App) setupRoutes(instanceHandler *handler.InstanceHandler) {
+func (a *App) setupRoutes(instanceHandler *handler.InstanceHandler, uiHandler *handler.UIHandler) {
 	proxy := paasMiddleware.NewInstanceProxy(a.Repo, a.Logger)
 
 	a.Router.Use(middleware.RequestID)
@@ -15,6 +15,15 @@ func (a *App) setupRoutes(instanceHandler *handler.InstanceHandler) {
 	a.Router.Use(middleware.Logger)
 	a.Router.Use(middleware.Recoverer)
 	a.Router.Use(proxy.Handler)
+
+	// UI Routes
+	a.Router.Get("/", uiHandler.Dashboard)
+	a.Router.Get("/ui/instances-table", uiHandler.InstancesTable)
+	a.Router.Post("/ui/instances/{id}/start", uiHandler.StartInstance)
+	a.Router.Post("/ui/instances/{id}/stop", uiHandler.StopInstance)
+	a.Router.Delete("/ui/instances/{id}", uiHandler.DeleteInstance)
+	a.Router.Post("/ui/instances", uiHandler.CreateInstance)
+	a.Router.Get("/ui/instances/{id}/logs", uiHandler.LogsModal)
 
 	a.Router.Route("/api", func(r chi.Router) {
 		r.Route("/instances", func(r chi.Router) {

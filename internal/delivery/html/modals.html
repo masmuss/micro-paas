@@ -1,0 +1,64 @@
+{{define "create-modal"}}
+<dialog id="create-modal">
+    <article style="width: 500px">
+        <header>
+            <button aria-label="Close" rel="prev" onclick="closeCreateModal()"></button>
+            <p><strong>🆕 Create New Instance</strong></p>
+        </header>
+        <form hx-post="/ui/instances" hx-target="#instances-table" hx-on::after-request="closeCreateModal()">
+            <label for="name"
+                >Instance Name
+                <input type="text" id="name" name="name" placeholder="my-awesome-app" required />
+            </label>
+            <label for="image"
+                >Docker Image
+                <input type="text" id="image" name="image" placeholder="nginx:latest" required />
+            </label>
+            <div class="grid">
+                <label for="subdomain"
+                    >Subdomain
+                    <input type="text" id="subdomain" name="subdomain" placeholder="webapp" required />
+                </label>
+                <label for="port"
+                    >Internal Port
+                    <input type="number" id="port" name="port" value="80" />
+                </label>
+            </div>
+            <label for="env"
+                >Environment Variables (Optional)
+                <textarea id="env" name="env" placeholder="APP_COLOR=blue&#10;DB_HOST=localhost" rows="5"></textarea>
+                <small>Format: KEY=VALUE (one per line)</small>
+            </label>
+            <footer class="grid">
+                <button type="button" class="secondary outline" onclick="closeCreateModal()">Cancel</button>
+                <button type="submit" id="submit-btn">Create Instance</button>
+            </footer>
+        </form>
+    </article>
+</dialog>
+{{end}} {{define "logs-content"}}
+<dialog id="logs-modal" open>
+    <article style="width: 80vw; max-width: 1000px">
+        <header>
+            <button aria-label="Close" rel="prev" onclick="closeModal()"></button>
+            <p><strong>📝 Logs: {{.Name}}</strong></p>
+        </header>
+        <pre
+            style="
+                max-height: 60vh;
+                overflow-y: auto;
+                font-size: 0.85em;
+                background: #000;
+                color: #fff;
+                padding: 1rem;
+                border-radius: 4px;
+            "
+        >
+{{if .Logs}}{{.Logs}}{{else}}No logs available.{{end}}</pre
+        >
+        <footer>
+            <button class="secondary" onclick="closeModal()">Close</button>
+        </footer>
+    </article>
+</dialog>
+{{end}}
