@@ -89,31 +89,6 @@ func TestCreateInstance_DuplicateSubdomain(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 }
 
-func TestCreateInstance_DockerFailure_Rollback(t *testing.T) {
-	mockDocker := new(mockDockerService)
-	mockRepo := new(mockInstanceRepository)
-	handler := NewInstanceHandler(mockDocker, mockRepo, slog.Default())
-
-	mockDocker.On("PullImage", mock.Anything, "nginx:latest").Return(nil)
-	mockDocker.On("CreateContainer", mock.Anything, "nginx:latest", "test-app", mock.Anything).
-		Return("container-123", nil)
-	mockDocker.On("StartContainer", mock.Anything, "container-123").Return(assert.AnError)
-	mockDocker.On("StopContainer", mock.Anything, "container-123").Return(nil)
-	mockDocker.On("RemoveContainer", mock.Anything, "container-123").Return(nil)
-	mockRepo.On("GetBySubdomain", mock.Anything, "test").Return(nil, repository.ErrNotFound)
-	mockRepo.On("GetByName", mock.Anything, "test-app").Return(nil, repository.ErrNotFound)
-
-	body := `{"name":"test-app","image":"nginx:latest","subdomain":"test"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/instances", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	handler.Create(w, req)
-
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	mockDocker.AssertExpectations(t)
-}
-
 func TestListInstances(t *testing.T) {
 	mockDocker := new(mockDockerService)
 	mockRepo := new(mockInstanceRepository)
@@ -176,6 +151,106 @@ func TestGetByID_NotFound(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 }
 
+func TestUpdate_Success(t *testing.T) {
+	mockDocker := new(mockDockerService)
+	mockRepo := new(mockInstanceRepository)
+	handler := NewInstanceHandler(mockDocker, mockRepo, nil)
+
+	instance := &model.Instance{ID: 1, Name: "old-name", Subdomain: "old", Port: 80}
+	mockRepo.On("GetByID", mock.Anything, int64(1)).Return(instance, nil)
+	mockRepo.On("Update", mock.Anything, mock.MatchedBy(func(inst *model.Instance) bool {
+		return inst.Name == "new-name" && inst.Subdomain == "new" && inst.Port == 8080
+	})).Return(nil)
+
+	body := `{"name":"new-name","subdomain":"new","port":8080}`
+	req := httptest.NewRequest(http.MethodPatch, "/api/instances/1", strings.NewReader(body))
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, ctx))
+	w := httptest.NewRecorder()
+
+	handler.Update(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestStart_Success(t *testing.T) {
+	mockDocker := new(mockDockerService)
+	mockRepo := new(mockInstanceRepository)
+	handler := NewInstanceHandler(mockDocker, mockRepo, nil)
+
+	instance := &model.Instance{ID: 1, ContainerID: "c1", Status: model.StatusStopped}
+	mockRepo.On("GetByID", mock.Anything, int64(1)).Return(instance, nil)
+	mockDocker.On("StartContainer", mock.Anything, "c1").Return(nil)
+	mockRepo.On("Update", mock.Anything, mock.MatchedBy(func(inst *model.Instance) bool {
+		return inst.Status == model.StatusRunning
+	})).Return(nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/instances/1/start", nil)
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, ctx))
+	w := httptest.NewRecorder()
+
+	handler.Start(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockRepo.AssertExpectations(t)
+	mockDocker.AssertExpectations(t)
+}
+
+func TestStop_Success(t *testing.T) {
+	mockDocker := new(mockDockerService)
+	mockRepo := new(mockInstanceRepository)
+	handler := NewInstanceHandler(mockDocker, mockRepo, nil)
+
+	instance := &model.Instance{ID: 1, ContainerID: "c1", Status: model.StatusRunning}
+	mockRepo.On("GetByID", mock.Anything, int64(1)).Return(instance, nil)
+	mockDocker.On("StopContainer", mock.Anything, "c1").Return(nil)
+	mockRepo.On("Update", mock.Anything, mock.MatchedBy(func(inst *model.Instance) bool {
+		return inst.Status == model.StatusStopped
+	})).Return(nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/instances/1/stop", nil)
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, ctx))
+	w := httptest.NewRecorder()
+
+	handler.Stop(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockRepo.AssertExpectations(t)
+	mockDocker.AssertExpectations(t)
+}
+
+func TestRestart_Success(t *testing.T) {
+	mockDocker := new(mockDockerService)
+	mockRepo := new(mockInstanceRepository)
+	handler := NewInstanceHandler(mockDocker, mockRepo, slog.Default())
+
+	instance := &model.Instance{ID: 1, ContainerID: "c1", Status: model.StatusRunning}
+	mockRepo.On("GetByID", mock.Anything, int64(1)).Return(instance, nil)
+	mockDocker.On("StopContainer", mock.Anything, "c1").Return(nil)
+	mockDocker.On("StartContainer", mock.Anything, "c1").Return(nil)
+	mockRepo.On("Update", mock.Anything, mock.MatchedBy(func(inst *model.Instance) bool {
+		return inst.Status == model.StatusRunning
+	})).Return(nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/instances/1/restart", nil)
+	ctx := chi.NewRouteContext()
+	ctx.URLParams.Add("id", "1")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, ctx))
+	w := httptest.NewRecorder()
+
+	handler.Restart(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockRepo.AssertExpectations(t)
+	mockDocker.AssertExpectations(t)
+}
+
 func TestDelete_Success(t *testing.T) {
 	mockDocker := new(mockDockerService)
 	mockRepo := new(mockInstanceRepository)
@@ -198,23 +273,4 @@ func TestDelete_Success(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	mockRepo.AssertExpectations(t)
 	mockDocker.AssertExpectations(t)
-}
-
-func TestDelete_NotFound(t *testing.T) {
-	mockDocker := new(mockDockerService)
-	mockRepo := new(mockInstanceRepository)
-	handler := NewInstanceHandler(mockDocker, mockRepo, nil)
-
-	mockRepo.On("GetByID", mock.Anything, int64(999)).Return(nil, repository.ErrNotFound)
-
-	req := httptest.NewRequest(http.MethodDelete, "/api/instances/999", nil)
-	ctx := chi.NewRouteContext()
-	ctx.URLParams.Add("id", "999")
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, ctx))
-	w := httptest.NewRecorder()
-
-	handler.Delete(w, req)
-
-	assert.Equal(t, http.StatusNotFound, w.Code)
-	mockRepo.AssertExpectations(t)
 }

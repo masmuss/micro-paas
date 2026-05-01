@@ -45,6 +45,13 @@ type createInstanceReq struct {
 	Env       map[string]string `json:"env"`
 }
 
+type updateInstanceReq struct {
+	Name      *string           `json:"name"`
+	Subdomain *string           `json:"subdomain"`
+	Port      *int              `json:"port"`
+	Env       map[string]string `json:"env"`
+}
+
 type instanceRes struct {
 	ID        int64             `json:"id"`
 	Name      string            `json:"name"`
@@ -63,7 +70,12 @@ func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	if err := response.DecodeJSON(r, &reqBody); err != nil {
 		h.logger.ErrorContext(ctx, "failed to decode request", "error", err)
-		if writeErr := response.WriteJSON(w, http.StatusBadRequest, "Invalid request body", nil); writeErr != nil {
+		if writeErr := response.WriteJSON(
+			w,
+			http.StatusBadRequest,
+			"Invalid request body",
+			nil,
+		); writeErr != nil {
 			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
 		}
 		return
@@ -77,14 +89,24 @@ func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := h.repo.GetBySubdomain(ctx, reqBody.Subdomain); err == nil {
-		if writeErr := response.WriteJSON(w, http.StatusConflict, "subdomain already in use", nil); writeErr != nil {
+		if writeErr := response.WriteJSON(
+			w,
+			http.StatusConflict,
+			"subdomain already in use",
+			nil,
+		); writeErr != nil {
 			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
 		}
 		return
 	}
 
 	if _, err := h.repo.GetByName(ctx, reqBody.Name); err == nil {
-		if writeErr := response.WriteJSON(w, http.StatusConflict, "name already in use", nil); writeErr != nil {
+		if writeErr := response.WriteJSON(
+			w,
+			http.StatusConflict,
+			"name already in use",
+			nil,
+		); writeErr != nil {
 			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
 		}
 		return
@@ -160,7 +182,12 @@ func (h *InstanceHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := toResponse(instance)
-	if writeErr := response.WriteJSON(w, http.StatusCreated, "Instance created successfully", res); writeErr != nil {
+	if writeErr := response.WriteJSON(
+		w,
+		http.StatusCreated,
+		"Instance created successfully",
+		res,
+	); writeErr != nil {
 		h.logger.ErrorContext(ctx, "failed to write success response", "error", writeErr)
 	}
 }
@@ -188,7 +215,12 @@ func (h *InstanceHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := toListResponse(instances)
-	if writeErr := response.WriteJSON(w, http.StatusOK, "Instances retrieved successfully", res); writeErr != nil {
+	if writeErr := response.WriteJSON(
+		w,
+		http.StatusOK,
+		"Instances retrieved successfully",
+		res,
+	); writeErr != nil {
 		h.logger.ErrorContext(ctx, "failed to write success response", "error", writeErr)
 	}
 }
@@ -229,7 +261,12 @@ func (h *InstanceHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	instance, err := h.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
-			if writeErr := response.WriteJSON(w, http.StatusNotFound, "Instance not found", nil); writeErr != nil {
+			if writeErr := response.WriteJSON(
+				w,
+				http.StatusNotFound,
+				"Instance not found",
+				nil,
+			); writeErr != nil {
 				h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
 			}
 			return
@@ -266,7 +303,12 @@ func (h *InstanceHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if writeErr := response.WriteJSON(w, http.StatusOK, "Instance deleted successfully", nil); writeErr != nil {
+	if writeErr := response.WriteJSON(
+		w,
+		http.StatusOK,
+		"Instance deleted successfully",
+		nil,
+	); writeErr != nil {
 		h.logger.ErrorContext(ctx, "failed to write success response", "error", writeErr)
 	}
 }
@@ -324,7 +366,12 @@ func (h *InstanceHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	instance, err := h.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
-			if writeErr := response.WriteJSON(w, http.StatusNotFound, "Instance not found", nil); writeErr != nil {
+			if writeErr := response.WriteJSON(
+				w,
+				http.StatusNotFound,
+				"Instance not found",
+				nil,
+			); writeErr != nil {
 				h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
 			}
 			return
@@ -347,7 +394,237 @@ func (h *InstanceHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	h.syncStatus(ctx, instance)
 
 	res := toResponse(instance)
-	if writeErr := response.WriteJSON(w, http.StatusOK, "Instance retrieved successfully", res); writeErr != nil {
+	if writeErr := response.WriteJSON(
+		w,
+		http.StatusOK,
+		"Instance retrieved successfully",
+		res,
+	); writeErr != nil {
+		h.logger.ErrorContext(ctx, "failed to write success response", "error", writeErr)
+	}
+}
+
+// Update handles updating an existing instance's metadata.
+func (h *InstanceHandler) Update(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		if writeErr := response.WriteJSON(w, http.StatusBadRequest, "Invalid ID", nil); writeErr != nil {
+			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+		}
+		return
+	}
+
+	var reqBody updateInstanceReq
+	if decodeErr := response.DecodeJSON(r, &reqBody); decodeErr != nil {
+		h.logger.ErrorContext(ctx, "failed to decode request", "error", decodeErr)
+		if writeErr := response.WriteJSON(
+			w,
+			http.StatusBadRequest,
+			"Invalid request body",
+			nil,
+		); writeErr != nil {
+			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+		}
+		return
+	}
+
+	instance, getErr := h.repo.GetByID(ctx, id)
+	if getErr != nil {
+		if errors.Is(getErr, repository.ErrNotFound) {
+			if writeErr := response.WriteJSON(
+				w,
+				http.StatusNotFound,
+				"Instance not found",
+				nil,
+			); writeErr != nil {
+				h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+			}
+			return
+		}
+		h.logger.ErrorContext(ctx, "Failed to get instance", "error", getErr)
+		if writeErr := response.WriteJSON(
+			w,
+			http.StatusInternalServerError,
+			"Internal server error",
+			nil,
+		); writeErr != nil {
+			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+		}
+		return
+	}
+
+	// Update fields if provided
+	if reqBody.Name != nil {
+		instance.Name = *reqBody.Name
+	}
+	if reqBody.Subdomain != nil {
+		instance.Subdomain = *reqBody.Subdomain
+	}
+	if reqBody.Port != nil {
+		instance.Port = *reqBody.Port
+	}
+	if reqBody.Env != nil {
+		instance.Env = reqBody.Env
+	}
+
+	if updateErr := h.repo.Update(ctx, instance); updateErr != nil {
+		h.logger.ErrorContext(ctx, "Failed to update instance", "error", updateErr)
+		if writeErr := response.WriteJSON(
+			w,
+			http.StatusInternalServerError,
+			"Internal server error",
+			nil,
+		); writeErr != nil {
+			h.logger.ErrorContext(ctx, "failed to write error response", "error", writeErr)
+		}
+		return
+	}
+
+	res := toResponse(instance)
+	if writeErr := response.WriteJSON(
+		w,
+		http.StatusOK,
+		"Instance updated successfully",
+		res,
+	); writeErr != nil {
+		h.logger.ErrorContext(ctx, "failed to write success response", "error", writeErr)
+	}
+}
+
+// Start handles starting a stopped instance.
+func (h *InstanceHandler) Start(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	instance, getErr := h.repo.GetByID(ctx, id)
+	if getErr != nil {
+		if errors.Is(getErr, repository.ErrNotFound) {
+			http.Error(w, "Instance not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if startErr := h.dockerSvc.StartContainer(ctx, instance.ContainerID); startErr != nil {
+		h.logger.ErrorContext(ctx, "Failed to start container", "error", startErr)
+		http.Error(w, "Failed to start container", http.StatusInternalServerError)
+		return
+	}
+
+	instance.Status = model.StatusRunning
+	if updateErr := h.repo.Update(ctx, instance); updateErr != nil {
+		h.logger.ErrorContext(ctx, "Failed to update instance status", "error", updateErr)
+	}
+
+	if writeErr := response.WriteJSON(
+		w,
+		http.StatusOK,
+		"Instance started successfully",
+		toResponse(instance),
+	); writeErr != nil {
+		h.logger.ErrorContext(ctx, "failed to write success response", "error", writeErr)
+	}
+}
+
+// Stop handles stopping a running instance.
+func (h *InstanceHandler) Stop(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	instance, getErr := h.repo.GetByID(ctx, id)
+	if getErr != nil {
+		if errors.Is(getErr, repository.ErrNotFound) {
+			http.Error(w, "Instance not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if stopErr := h.dockerSvc.StopContainer(ctx, instance.ContainerID); stopErr != nil {
+		h.logger.ErrorContext(ctx, "Failed to stop container", "error", stopErr)
+		http.Error(w, "Failed to stop container", http.StatusInternalServerError)
+		return
+	}
+
+	instance.Status = model.StatusStopped
+	if updateErr := h.repo.Update(ctx, instance); updateErr != nil {
+		h.logger.ErrorContext(ctx, "Failed to update instance status", "error", updateErr)
+	}
+
+	if writeErr := response.WriteJSON(
+		w,
+		http.StatusOK,
+		"Instance stopped successfully",
+		toResponse(instance),
+	); writeErr != nil {
+		h.logger.ErrorContext(ctx, "failed to write success response", "error", writeErr)
+	}
+}
+
+// Restart handles restarting an instance.
+func (h *InstanceHandler) Restart(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	instance, getErr := h.repo.GetByID(ctx, id)
+	if getErr != nil {
+		if errors.Is(getErr, repository.ErrNotFound) {
+			http.Error(w, "Instance not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if stopErr := h.dockerSvc.StopContainer(ctx, instance.ContainerID); stopErr != nil {
+		h.logger.WarnContext(
+			ctx,
+			"Failed to stop container during restart (might be already stopped)",
+			"error",
+			stopErr,
+		)
+	}
+
+	if startErr := h.dockerSvc.StartContainer(ctx, instance.ContainerID); startErr != nil {
+		h.logger.ErrorContext(ctx, "Failed to start container", "error", startErr)
+		http.Error(w, "Failed to start container", http.StatusInternalServerError)
+		return
+	}
+
+	instance.Status = model.StatusRunning
+	if updateErr := h.repo.Update(ctx, instance); updateErr != nil {
+		h.logger.ErrorContext(ctx, "Failed to update instance status", "error", updateErr)
+	}
+
+	if writeErr := response.WriteJSON(
+		w,
+		http.StatusOK,
+		"Instance restarted successfully",
+		toResponse(instance),
+	); writeErr != nil {
 		h.logger.ErrorContext(ctx, "failed to write success response", "error", writeErr)
 	}
 }
@@ -363,27 +640,27 @@ func (h *InstanceHandler) Logs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	instance, err := h.repo.GetByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+	instance, getErr := h.repo.GetByID(ctx, id)
+	if getErr != nil {
+		if errors.Is(getErr, repository.ErrNotFound) {
 			http.Error(w, "Instance not found", http.StatusNotFound)
 			return
 		}
-		h.logger.ErrorContext(ctx, "Failed to get instance", "error", err)
+		h.logger.ErrorContext(ctx, "Failed to get instance", "error", getErr)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	reader, err := h.dockerSvc.GetContainerLogs(ctx, instance.ContainerID)
-	if err != nil {
-		h.logger.ErrorContext(ctx, "Failed to get logs", "error", err)
+	reader, logsErr := h.dockerSvc.GetContainerLogs(ctx, instance.ContainerID)
+	if logsErr != nil {
+		h.logger.ErrorContext(ctx, "Failed to get logs", "error", logsErr)
 		http.Error(w, "Failed to get logs", http.StatusInternalServerError)
 		return
 	}
 	defer reader.Close()
 
 	w.Header().Set("Content-Type", "text/plain")
-	if _, ioCopyErr := io.Copy(w, reader); ioCopyErr != nil {
-		h.logger.ErrorContext(ctx, "Failed to copy logs to response", "error", ioCopyErr)
+	if _, copyErr := io.Copy(w, reader); copyErr != nil {
+		h.logger.ErrorContext(ctx, "Failed to copy logs to response", "error", copyErr)
 	}
 }
