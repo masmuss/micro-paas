@@ -6,21 +6,58 @@ import (
 	"fmt"
 
 	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/mysqldialect"
+	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 
-	// Register sqlite driver for Bun ORM.
+	// Register drivers.
+	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "modernc.org/sqlite"
 )
 
-// NewBunDB opens a SQLite database at dbPath and returns a Bun ORM DB instance.
-// The returned *bun.DB must be closed by the caller when no longer needed.
-// Returns an error if the database cannot be opened.
-func NewBunDB(dbPath string) (*bun.DB, error) {
-	sqldb, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("open database %q: %w", dbPath, err)
-	}
+// Factory is a function type that creates a bun.DB instance.
+type Factory func(dsn string) (*bun.DB, error)
 
-	db := bun.NewDB(sqldb, sqlitedialect.New())
-	return db, nil
+// factories is a registry of database connection factories.
+var factories = map[string]Factory{
+	"sqlite":     createSQLite,
+	"sqlite3":    createSQLite,
+	"postgres":   createPostgres,
+	"postgresql": createPostgres,
+	"pgx":        createPostgres,
+	"mysql":      createMySQL,
+}
+
+// NewBunDB opens a database connection based on driver and dsn using the registered factories.
+func NewBunDB(driver, dsn string) (*bun.DB, error) {
+	factory, ok := factories[driver]
+	if !ok {
+		return nil, fmt.Errorf("unsupported database driver: %s", driver)
+	}
+	return factory(dsn)
+}
+
+func createSQLite(dsn string) (*bun.DB, error) {
+	sqldb, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("open sqlite: %w", err)
+	}
+	return bun.NewDB(sqldb, sqlitedialect.New()), nil
+}
+
+func createPostgres(dsn string) (*bun.DB, error) {
+	sqldb, err := sql.Open("pgx", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("open postgres: %w", err)
+	}
+	return bun.NewDB(sqldb, pgdialect.New()), nil
+}
+
+func createMySQL(dsn string) (*bun.DB, error) {
+	sqldb, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("open mysql: %w", err)
+	}
+	return bun.NewDB(sqldb, mysqldialect.New()), nil
 }

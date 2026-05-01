@@ -4,29 +4,31 @@ A simple Platform as a Service (PaaS) built with Go that allows you to manage Do
 
 ## Features
 
-- **Instance Management**: Create, list, and delete application instances.
-- **Automatic Proxying**: Requests to `subdomain.yourdomain.com` are automatically proxied to the corresponding Docker container.
-- **Environment Variables**: Configure your application using custom environment variables.
+- **Instance Management**: Create, list, detail, and delete application instances.
+- **Automatic Proxying**: Requests to `subdomain.localhost` are automatically proxied to the corresponding Docker container.
+- **Dynamic Database Support**: Supports SQLite, PostgreSQL, and MySQL via Bun ORM.
+- **Environment Variables**: Configure your application using custom environment variables during creation.
 - **Custom Internal Port**: Support for applications running on any port inside the container (defaults to 80).
-- **Health Monitoring**: Periodically syncs container status from Docker to the database.
-- **Self-Healing**: Automatically detects if a container is down and updates its status.
+- **Container Logs**: Stream application logs directly via API for debugging.
+- **Health Monitoring & Self-Healing**: Periodically syncs container status and automatically restarts containers if they go down unexpectedly.
 
 ## Prerequisites
 
 - Go 1.22+
 - Docker (daemon must be running)
-- SQLite (for the database)
+- Database (SQLite file, PostgreSQL, or MySQL)
 
 ## Getting Started
 
 ### 1. Configuration
 
-Copy `config.example.yml` to `config.yml` (if provided) or ensure you have a `config.yml` with the following content:
+Ensure you have a `config.yml` in the root directory:
 
 ```yaml
-port: 8080
-docker_socket: /var/run/docker.sock
-db_dsn: micro-paas.db
+server_port: "8080"
+docker_socket: "/var/run/docker.sock"
+db_driver: "sqlite" # options: sqlite, postgres, mysql
+db_dsn: "./micro-paas.db"
 ```
 
 ### 2. Run the Application
@@ -41,9 +43,7 @@ The management API will be available at `http://localhost:8080/api`.
 
 ### Create Instance
 
-**Endpoint:** `POST /api/instances`
-
-**Request Body:**
+`POST /api/instances`
 
 ```json
 {
@@ -52,23 +52,41 @@ The management API will be available at `http://localhost:8080/api`.
   "subdomain": "webapp",
   "port": 80,
   "env": {
-    "APP_COLOR": "blue",
-    "DEBUG": "true"
+    "APP_COLOR": "blue"
   }
 }
 ```
 
 ### List Instances
 
-**Endpoint:** `GET /api/instances`
+`GET /api/instances`
+
+### Get Instance Detail
+
+`GET /api/instances/{id}`
+
+### Get Instance Logs
+
+`GET /api/instances/{id}/logs`
 
 ### Delete Instance
 
-**Endpoint:** `DELETE /api/instances/{id}`
+`DELETE /api/instances/{id}`
 
 ## How it Works
 
-1.  **Creation**: When you create an instance, Micro PaaS pulls the Docker image, creates a container with the specified name and environment variables, and starts it.
-2.  **Routing**: The `InstanceProxy` middleware intercepts incoming requests, extracts the subdomain, looks up the corresponding container ID and port in the database, and proxies the request using `httputil.ReverseProxy`.
-3.  **Sync**: A background `HealthChecker` service keeps the database in sync with the actual Docker container states.
-4.  **Self-Healing**: If a container is detected as down during a health check, its status is updated in the database, and it can be restarted or removed via the API.
+1.  **Creation**: Micro PaaS pulls the Docker image, creates a container with custom environment variables, and records the assigned subdomain and port in the database.
+2.  **Routing**: The `InstanceProxy` middleware intercepts requests, extracts the subdomain from the `Host` header, and reverse-proxies the traffic to the container's internal IP and port.
+3.  **Sync & Self-Healing**: The `HealthChecker` background service monitors container states. If a container is found "Stopped" while its database status is "Running", it will attempt an automatic restart to ensure high availability.
+
+## Testing Subdomains Locally
+
+You can test the reverse proxy without custom DNS using `curl`:
+
+```bash
+curl -H "Host: webapp.localhost" http://localhost:8080
+```
+
+## License
+
+MIT

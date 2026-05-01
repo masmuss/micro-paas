@@ -1,3 +1,4 @@
-SERVER_PORT: "8080"
-DB_PATH: "./micro-paas.db"
-DOCKER_SOCKET: "/var/run/docker.sock"
+server_port: "8080"
+db_driver: "sqlite"
+db_dsn: "./micro-paas.db"
+docker_socket: "/var/run/docker.sock"
