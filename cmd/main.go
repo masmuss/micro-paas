@@ -32,7 +32,7 @@ func main() {
 		return
 	}
 
-	db, dbErr := database.NewBunDB(cfg.DBPath)
+	db, dbErr := database.NewBunDB(cfg.DBDriver, cfg.DBDsn)
 	if dbErr != nil {
 		log.ErrorContext(ctx, "Failed to connect to database", "error", dbErr)
 		stop()

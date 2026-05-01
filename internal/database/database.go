@@ -6,21 +6,44 @@ import (
 	"fmt"
 
 	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/mysqldialect"
+	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 
-	// Register sqlite driver for Bun ORM.
+	// Register drivers.
+	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "modernc.org/sqlite"
 )
 
-// NewBunDB opens a SQLite database at dbPath and returns a Bun ORM DB instance.
-// The returned *bun.DB must be closed by the caller when no longer needed.
-// Returns an error if the database cannot be opened.
-func NewBunDB(dbPath string) (*bun.DB, error) {
-	sqldb, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("open database %q: %w", dbPath, err)
+// NewBunDB opens a database connection based on driver and dsn.
+func NewBunDB(driver, dsn string) (*bun.DB, error) {
+	var sqldb *sql.DB
+	var err error
+	var db *bun.DB
+
+	switch driver {
+	case "sqlite", "sqlite3":
+		sqldb, err = sql.Open("sqlite", dsn)
+		if err != nil {
+			return nil, err
+		}
+		db = bun.NewDB(sqldb, sqlitedialect.New())
+	case "postgres", "postgresql":
+		sqldb, err = sql.Open("pgx", dsn)
+		if err != nil {
+			return nil, err
+		}
+		db = bun.NewDB(sqldb, pgdialect.New())
+	case "mysql":
+		sqldb, err = sql.Open("mysql", dsn)
+		if err != nil {
+			return nil, err
+		}
+		db = bun.NewDB(sqldb, mysqldialect.New())
+	default:
+		return nil, fmt.Errorf("unsupported database driver: %s", driver)
 	}
 
-	db := bun.NewDB(sqldb, sqlitedialect.New())
 	return db, nil
 }
