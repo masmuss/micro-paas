@@ -21,6 +21,8 @@ func (a *App) setupRoutes(instanceHandler *handler.InstanceHandler, uiHandler *h
 	a.Router.Get("/ui/instances-table", uiHandler.InstancesTable)
 	a.Router.Post("/ui/instances/{id}/start", uiHandler.StartInstance)
 	a.Router.Post("/ui/instances/{id}/stop", uiHandler.StopInstance)
+	a.Router.Delete("/ui/instances/{id}", uiHandler.DeleteInstance)
+	a.Router.Post("/ui/instances", uiHandler.CreateInstance)
 	a.Router.Get("/ui/instances/{id}/logs", uiHandler.LogsModal)
 
 	a.Router.Route("/api", func(r chi.Router) {

@@ -47,7 +47,23 @@
             </nav>
         </header>
 
-        <main class="container">{{template "content" .}}</main>
+        <main class="container">
+            {{template "content" .}}
+        </main>
+
+        <div id="toast" style="display: none; position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; background: var(--pico-primary-background); color: var(--pico-primary-inverse); box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000;">
+        </div>
+
+        <script>
+            document.body.addEventListener('showToast', function(evt) {
+                const toast = document.getElementById('toast');
+                toast.innerText = evt.detail.value;
+                toast.style.display = 'block';
+                setTimeout(() => {
+                    toast.style.display = 'none';
+                }, 3000);
+            });
+        </script>
 
         <footer class="container">
             <small>Built with Go, HTMX & Pico.css</small>
