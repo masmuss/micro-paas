@@ -64,7 +64,7 @@ func New(cfg *config.Config, log *slog.Logger, db *bun.DB) (*App, error) {
 	}
 
 	instanceHandler := handler.NewInstanceHandler(dockerSvc, instanceRepo, log)
-	uiHandler := handler.NewUIHandler(instanceRepo, dockerSvc)
+	uiHandler := handler.NewUIHandler(instanceRepo, dockerSvc, cfg)
 	r := chi.NewRouter()
 
 	healthChecker := service.NewHealthChecker(dockerSvc, instanceRepo, log, 30*time.Second)

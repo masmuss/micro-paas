@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/masmuss/micro-paas/internal/config"
 	"github.com/masmuss/micro-paas/internal/model"
 	"github.com/masmuss/micro-paas/internal/repository"
 	"github.com/masmuss/micro-paas/internal/service"
@@ -20,10 +21,11 @@ type UIHandler struct {
 	repo      repository.InstanceRepository
 	dockerSvc service.DockerService
 	tmpl      *template.Template
+	cfg       *config.Config
 }
 
 // NewUIHandler creates a new UIHandler and parses templates from the filesystem.
-func NewUIHandler(repo repository.InstanceRepository, dockerSvc service.DockerService) *UIHandler {
+func NewUIHandler(repo repository.InstanceRepository, dockerSvc service.DockerService, cfg *config.Config) *UIHandler {
 	// Parse all templates in the html directory
 	tmpl := template.Must(template.ParseGlob(filepath.Join("internal", "delivery", "html", "*.html")))
 
@@ -31,12 +33,18 @@ func NewUIHandler(repo repository.InstanceRepository, dockerSvc service.DockerSe
 		repo:      repo,
 		dockerSvc: dockerSvc,
 		tmpl:      tmpl,
+		cfg:       cfg,
 	}
 }
 
 // Dashboard renders the main dashboard layout.
 func (h *UIHandler) Dashboard(w http.ResponseWriter, _ *http.Request) {
-	err := h.tmpl.ExecuteTemplate(w, "layout", nil)
+	data := struct {
+		MainDomain string
+	}{
+		MainDomain: h.cfg.MainDomain,
+	}
+	err := h.tmpl.ExecuteTemplate(w, "layout", data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -51,9 +59,11 @@ func (h *UIHandler) InstancesTable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
-		Instances interface{}
+		Instances  interface{}
+		MainDomain string
 	}{
-		Instances: instances,
+		Instances:  instances,
+		MainDomain: h.cfg.MainDomain,
 	}
 
 	err = h.tmpl.ExecuteTemplate(w, "instances-table", data)

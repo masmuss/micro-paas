@@ -2,6 +2,7 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/masmuss/micro-paas/internal/config"
 	"github.com/masmuss/micro-paas/internal/model"
 	"github.com/masmuss/micro-paas/internal/repository"
 )
@@ -19,11 +21,16 @@ import (
 type InstanceProxy struct {
 	repo   repository.InstanceRepository
 	logger *slog.Logger
+	cfg    *config.Config
 }
 
 // NewInstanceProxy creates a new InstanceProxy middleware.
-func NewInstanceProxy(repo repository.InstanceRepository, logger *slog.Logger) *InstanceProxy {
-	return &InstanceProxy{repo: repo, logger: logger.With("component", "instance_proxy")}
+func NewInstanceProxy(repo repository.InstanceRepository, logger *slog.Logger, cfg *config.Config) *InstanceProxy {
+	return &InstanceProxy{
+		repo:   repo,
+		logger: logger.With("component", "instance_proxy"),
+		cfg:    cfg,
+	}
 }
 
 // Handler is the middleware handler that proxies requests to the appropriate container.
@@ -41,7 +48,7 @@ func (p *InstanceProxy) Handler(next http.Handler) http.Handler {
 			host = h
 		}
 
-		subdomain := extractSubdomain(host)
+		subdomain := p.extractSubdomain(r.Context(), host)
 		if subdomain == "" {
 			next.ServeHTTP(w, r)
 			return
@@ -49,13 +56,20 @@ func (p *InstanceProxy) Handler(next http.Handler) http.Handler {
 
 		instance, err := p.repo.GetBySubdomain(r.Context(), subdomain)
 		if err != nil {
-			p.logger.Error("instance not found", "subdomain", subdomain, "error", err)
+			p.logger.ErrorContext(r.Context(), "instance not found", "subdomain", subdomain, "error", err)
 			http.NotFound(w, r)
 			return
 		}
 
 		if instance.Status != model.StatusRunning {
-			p.logger.Warn("instance not running", "instance", instance.Name, "status", instance.Status)
+			p.logger.WarnContext(
+				r.Context(),
+				"instance not running",
+				"instance",
+				instance.Name,
+				"status",
+				instance.Status,
+			)
 			http.Error(w, "Instance not running", http.StatusServiceUnavailable)
 			return
 		}
@@ -67,12 +81,14 @@ func (p *InstanceProxy) Handler(next http.Handler) http.Handler {
 
 		targetURL, urlParseErr := url.Parse(fmt.Sprintf("http://%s:%d", instance.ContainerID[:12], port))
 		if urlParseErr != nil {
-			p.logger.Error("invalid target URL", "error", urlParseErr)
+			p.logger.ErrorContext(r.Context(), "invalid target URL", "error", urlParseErr)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
-		p.logger.Info("proxying request",
+		p.logger.InfoContext(
+			r.Context(),
+			"proxying request",
 			"method", r.Method,
 			"subdomain", subdomain,
 			"target", targetURL.String(),
@@ -92,10 +108,20 @@ func (p *InstanceProxy) Handler(next http.Handler) http.Handler {
 	})
 }
 
-func extractSubdomain(host string) string {
+func (p *InstanceProxy) extractSubdomain(ctx context.Context, host string) string {
+	p.logger.InfoContext(ctx, "extracting subdomain", "host", host, "main_domain", p.cfg.MainDomain)
+
 	// If it's just localhost or an IP, no subdomain
 	if host == "localhost" || net.ParseIP(host) != nil {
 		return ""
+	}
+
+	if host == p.cfg.MainDomain {
+		return ""
+	}
+
+	if strings.HasSuffix(host, "."+p.cfg.MainDomain) {
+		return strings.TrimSuffix(host, "."+p.cfg.MainDomain)
 	}
 
 	parts := strings.Split(host, ".")

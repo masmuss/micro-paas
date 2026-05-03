@@ -19,6 +19,8 @@ type Config struct {
 	DBDsn string `mapstructure:"db_dsn"`
 	// DockerSocket is the path to the Docker socket for container management (e.g. "/var/run/docker.sock").
 	DockerSocket string `mapstructure:"docker_socket"`
+	// MainDomain is the primary domain for the dashboard (e.g. "micro-paas.local").
+	MainDomain string `mapstructure:"main_domain"`
 }
 
 // LoadConfig loads configuration from config.yml (if present) and environment variables.
@@ -28,6 +30,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("db_driver", "sqlite")
 	viper.SetDefault("db_dsn", "micro-paas.db")
 	viper.SetDefault("docker_socket", "/var/run/docker.sock")
+	viper.SetDefault("main_domain", "localhost")
 
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
