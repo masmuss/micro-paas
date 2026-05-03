@@ -32,17 +32,8 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("docker_socket", "/var/run/docker.sock")
 	viper.SetDefault("main_domain", "localhost")
 
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
+	// Read from environment variables
 	viper.AutomaticEnv()
-
-	if err := viper.ReadInConfig(); err != nil {
-		var notFoundErr viper.ConfigFileNotFoundError
-		if !errors.As(err, &notFoundErr) {
-			return nil, fmt.Errorf("read config file: %w", err)
-		}
-	}
 
 	var config Config
 	err := viper.Unmarshal(&config)
