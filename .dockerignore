@@ -1,0 +1,38 @@
+# Build and temp directories
+bin/
+tmp/
+obj/
+
+# Go
+vendor/
+pkg/
+*.test
+*.out
+
+# Databases and logs
+*.db
+*.db-journal
+*.log
+
+# Docker
+Dockerfile
+.dockerignore
+
+# IDEs and Tools
+.vscode/
+.idea/
+.git/
+.gitignore
+.air.toml
+.golangci.yml
+lefthook.yml
+taskfile.yml
+
+# Documentation
+README.md
+docs/
+@docs/
+
+# Misc
+.env
+.DS_Store

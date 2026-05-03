@@ -26,8 +26,8 @@
                     {{end}}
                 </td>
                 <td>
-                    <a href="http://{{.Subdomain}}.localhost:8080" target="_blank" style="font-family: monospace">
-                        {{.Subdomain}}.localhost
+                    <a href="http://{{.Subdomain}}.{{$.MainDomain}}" target="_blank" style="font-family: monospace">
+                        {{.Subdomain}}.{{$.MainDomain}}
                     </a>
                 </td>
                 <td style="text-align: right">
