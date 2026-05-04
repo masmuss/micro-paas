@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"time"
 
 	"github.com/masmuss/micro-paas/internal/config"
 	"github.com/moby/moby/api/types/container"
@@ -42,6 +43,9 @@ func (s *DockerServiceImpl) CreateContainer(
 	containerName string,
 	env map[string]string,
 ) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
 	s.log.InfoContext(
 		ctx,
 		"Creating container",
@@ -69,6 +73,11 @@ func (s *DockerServiceImpl) CreateContainer(
 		},
 	}
 
+	// Check if container with same name already exists
+	if _, err := s.cli.ContainerInspect(ctx, containerName, client.ContainerInspectOptions{}); err == nil {
+		return "", fmt.Errorf("container with name %q already exists", containerName)
+	}
+
 	resp, err := s.cli.ContainerCreate(ctx, options)
 	if err != nil {
 		return "", fmt.Errorf("create container %q: %w", containerName, err)
@@ -92,6 +101,9 @@ func (s *DockerServiceImpl) Ping(ctx context.Context) error {
 
 // PullImage pulls the specified Docker image, logging progress and errors.
 func (s *DockerServiceImpl) PullImage(ctx context.Context, imageName string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+
 	s.log.InfoContext(ctx, "Pulling image", "image", imageName)
 
 	reader, imagePullErr := s.cli.ImagePull(ctx, imageName, client.ImagePullOptions{})
@@ -111,6 +123,9 @@ func (s *DockerServiceImpl) PullImage(ctx context.Context, imageName string) err
 
 // StartContainer starts the Docker container with the given ID, logging the process and any errors.
 func (s *DockerServiceImpl) StartContainer(ctx context.Context, containerID string) error {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
 	s.log.InfoContext(ctx, "Starting container", "id", containerID)
 
 	if _, containerStartErr := s.cli.ContainerStart(
@@ -127,6 +142,9 @@ func (s *DockerServiceImpl) StartContainer(ctx context.Context, containerID stri
 
 // StopContainer stops the Docker container with the given ID.
 func (s *DockerServiceImpl) StopContainer(ctx context.Context, containerID string) error {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
 	s.log.InfoContext(ctx, "Stopping container", "id", containerID)
 
 	timeout := 10
@@ -140,6 +158,9 @@ func (s *DockerServiceImpl) StopContainer(ctx context.Context, containerID strin
 
 // RemoveContainer removes the Docker container with the given ID.
 func (s *DockerServiceImpl) RemoveContainer(ctx context.Context, containerID string) error {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
 	s.log.InfoContext(ctx, "Removing container", "id", containerID)
 
 	if _, err := s.cli.ContainerRemove(ctx, containerID, client.ContainerRemoveOptions{Force: true}); err != nil {
@@ -152,6 +173,9 @@ func (s *DockerServiceImpl) RemoveContainer(ctx context.Context, containerID str
 
 // GetContainerStatus returns the current status of a container.
 func (s *DockerServiceImpl) GetContainerStatus(ctx context.Context, containerID string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
 	inspect, err := s.cli.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
 	if err != nil {
 		return "", fmt.Errorf("inspect container %q: %w", containerID, err)
@@ -164,6 +188,9 @@ func (s *DockerServiceImpl) GetContainerStatus(ctx context.Context, containerID 
 
 // GetContainerLogs returns a stream of the container's logs.
 func (s *DockerServiceImpl) GetContainerLogs(ctx context.Context, containerID string) (io.ReadCloser, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
 	options := client.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,

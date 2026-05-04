@@ -79,7 +79,7 @@ func (p *InstanceProxy) Handler(next http.Handler) http.Handler {
 			port = 80 // Default if not set
 		}
 
-		targetURL, urlParseErr := url.Parse(fmt.Sprintf("http://%s:%d", instance.ContainerID[:12], port))
+		targetURL, urlParseErr := url.Parse(fmt.Sprintf("http://%s:%d", instance.Name, port))
 		if urlParseErr != nil {
 			p.logger.ErrorContext(r.Context(), "invalid target URL", "error", urlParseErr)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)

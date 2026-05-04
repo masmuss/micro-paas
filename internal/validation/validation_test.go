@@ -141,3 +141,68 @@ func TestValidateSubdomain(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateInstanceName(t *testing.T) {
+	tests := []struct {
+		name         string
+		instanceName string
+		wantErr      bool
+		wantErrMsg   string
+	}{
+		{
+			name:         "valid lowercase alphanumeric",
+			instanceName: "myapp",
+			wantErr:      false,
+		},
+		{
+			name:         "valid with hyphens",
+			instanceName: "my-app-123",
+			wantErr:      false,
+		},
+		{
+			name:         "uppercase letters",
+			instanceName: "MyApp",
+			wantErr:      true,
+			wantErrMsg:   "name must be lowercase alphanumeric and may contain hyphens",
+		},
+		{
+			name:         "contains underscore",
+			instanceName: "my_app",
+			wantErr:      true,
+			wantErrMsg:   "name must be lowercase alphanumeric and may contain hyphens",
+		},
+		{
+			name:         "contains dot",
+			instanceName: "my.app",
+			wantErr:      true,
+			wantErrMsg:   "name must be lowercase alphanumeric and may contain hyphens",
+		},
+		{
+			name:         "contains space",
+			instanceName: "my app",
+			wantErr:      true,
+			wantErrMsg:   "name must be lowercase alphanumeric and may contain hyphens",
+		},
+		{
+			name:         "empty string",
+			instanceName: "",
+			wantErr:      true,
+			wantErrMsg:   "name must be lowercase alphanumeric and may contain hyphens",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateInstanceName(tt.instanceName)
+			if tt.wantErr && err == nil {
+				t.Error("expected error, got nil")
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if tt.wantErrMsg != "" && err != nil && err.Error() != tt.wantErrMsg {
+				t.Errorf("error = %v, want %v", err.Error(), tt.wantErrMsg)
+			}
+		})
+	}
+}

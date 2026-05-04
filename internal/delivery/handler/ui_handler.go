@@ -212,6 +212,16 @@ func (h *UIHandler) CreateInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	invalidName := validation.ValidateInstanceName(name)
+	if invalidName != nil {
+		w.Header().Set(
+			"HX-Trigger",
+			fmt.Sprintf(`{"showToast": "%s"}`, invalidName.Error()),
+		)
+		http.Error(w, invalidName.Error(), http.StatusBadRequest)
+		return
+	}
+
 	// Parse ENV from textarea (KEY=VALUE per line)
 	envStr := r.FormValue("env")
 	env := make(map[string]string)

@@ -36,3 +36,11 @@ func ValidateSubdomain(s string) error {
 	}
 	return nil
 }
+
+// ValidateInstanceName validates the instance name field.
+func ValidateInstanceName(s string) error {
+	if matched, _ := regexp.MatchString(`^[a-z0-9-]+$`, s); !matched {
+		return errors.New("name must be lowercase alphanumeric and may contain hyphens")
+	}
+	return nil
+}
