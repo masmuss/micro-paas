@@ -43,6 +43,8 @@ func createSQLite(dsn string) (*bun.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
+	sqldb.SetMaxOpenConns(10)
+	sqldb.SetMaxIdleConns(5)
 	return bun.NewDB(sqldb, sqlitedialect.New()), nil
 }
 
@@ -51,6 +53,8 @@ func createPostgres(dsn string) (*bun.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open postgres: %w", err)
 	}
+	sqldb.SetMaxOpenConns(25)
+	sqldb.SetMaxIdleConns(5)
 	return bun.NewDB(sqldb, pgdialect.New()), nil
 }
 
@@ -59,5 +63,7 @@ func createMySQL(dsn string) (*bun.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open mysql: %w", err)
 	}
+	sqldb.SetMaxOpenConns(25)
+	sqldb.SetMaxIdleConns(5)
 	return bun.NewDB(sqldb, mysqldialect.New()), nil
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/joho/godotenv"
 	"github.com/masmuss/micro-paas/internal/config"
 	"github.com/masmuss/micro-paas/internal/database"
 	"github.com/masmuss/micro-paas/internal/delivery/handler"
@@ -35,6 +36,9 @@ type App struct {
 
 // Bootstrap handles the initial setup (config, db, migrations) shared by all entry points.
 func Bootstrap(ctx context.Context, logWriter io.Writer) (*config.Config, *slog.Logger, *bun.DB, error) {
+	// Load .env file if it exists
+	_ = godotenv.Load()
+
 	log := logger.New(os.Getenv("APP_ENV") == "development", logWriter)
 
 	cfg, err := config.LoadConfig()
@@ -64,7 +68,7 @@ func New(cfg *config.Config, log *slog.Logger, db *bun.DB) (*App, error) {
 	}
 
 	instanceHandler := handler.NewInstanceHandler(dockerSvc, instanceRepo, log)
-	uiHandler := handler.NewUIHandler(instanceRepo, dockerSvc)
+	uiHandler := handler.NewUIHandler(instanceRepo, dockerSvc, cfg)
 	r := chi.NewRouter()
 
 	healthChecker := service.NewHealthChecker(dockerSvc, instanceRepo, log, 30*time.Second)

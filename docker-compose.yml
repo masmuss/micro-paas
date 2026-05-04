@@ -1,0 +1,22 @@
+services:
+  server:
+    build: .
+    image: micro-paas:latest
+    labels:
+      - dev.orbstack.domains=micro-paas.local,*.micro-paas.local
+      - dev.orbstack.http-port=8080
+    container_name: micro-paas
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./micro-paas.db:/app/micro-paas.db
+    restart: unless-stopped
+    networks:
+      - micro-paas-net
+
+networks:
+  micro-paas-net:
+    name: micro-paas-net

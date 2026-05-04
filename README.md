@@ -1,97 +1,87 @@
-# Micro PaaS
+# Micro PaaS 🚀
 
 A simple Platform as a Service (PaaS) built with Go that allows you to manage Docker containers and route traffic via subdomains automatically.
 
 ## Features
 
-- **Instance Management**: Create, list, detail, and delete application instances.
-- **Automatic Proxying**: Requests to `subdomain.localhost` are automatically proxied to the corresponding Docker container.
-- **Dynamic Database Support**: Supports SQLite, PostgreSQL, and MySQL via Bun ORM.
-- **Environment Variables**: Configure your application using custom environment variables during creation.
-- **Custom Internal Port**: Support for applications running on any port inside the container (defaults to 80).
-- **Container Logs**: Stream application logs directly via API for debugging.
-- **Health Monitoring & Self-Healing**: Periodically syncs container status and automatically restarts containers if they go down unexpectedly.
+- **Web Dashboard**: Clean UI built with HTMX and Pico.css.
+- **Instance Management**: Create, start, stop, and delete application instances.
+- **Automatic Proxying**: Dynamic routing to containers via subdomains (e.g., `myapp.micro-paas.local`).
+- **Real-time Logs**: View container logs directly from the dashboard.
+- **Self-Healing**: Automatically restarts containers if they crash unexpectedly.
+- **Docker Integration**: Directly manages containers via Docker Socket.
 
 ## Prerequisites
 
-- Go 1.22+
-- Docker (daemon must be running)
-- Database (SQLite file, PostgreSQL, or MySQL)
+- **OrbStack** (recommended for macOS) or Docker Desktop.
+- **Go 1.26+** (for local development).
+- **Task** (optional, for running automation commands).
 
-## Getting Started
+## Setup & Configuration
 
-### 1. Configuration
+This project uses a unified `.env` file for configuration. Create a `.env` file in the root directory:
 
-Ensure you have a `config.yml` in the root directory:
-
-```yaml
-server_port: "8080"
-docker_socket: "/var/run/docker.sock"
-db_driver: "sqlite" # options: sqlite, postgres, mysql
-db_dsn: "./micro-paas.db"
+```env
+SERVER_PORT=8080
+DB_DRIVER=sqlite
+DB_DSN=./micro-paas.db
+DOCKER_SOCKET=/var/run/docker.sock
+MAIN_DOMAIN=micro-paas.local
 ```
 
-### 2. Run the Application
+## Running the Application
+
+### Using Docker (Recommended)
+
+The easiest way to run Micro PaaS is using Docker Compose. It's pre-configured for **OrbStack** with automatic domain support.
 
 ```bash
-go run ./cmd/server
+# Build and start the container
+task docker:up
+
+# View logs
+task docker:logs
+
+# Stop the container
+task docker:down
 ```
 
-or using Task:
+After starting, access the dashboard at:
+
+- **OrbStack**: [http://micro-paas.local](http://micro-paas.local)
+- **Direct**: [http://localhost:8080](http://localhost:8080)
+
+### Local Development (Hot Reload)
+
+To run the application locally with hot reload using `air`:
 
 ```bash
 task server
 ```
 
-The management API will be available at `http://localhost:8080/api`.
-
-## API Documentation
-
-### Create Instance
-
-`POST /api/instances`
-
-```json
-{
-  "name": "my-web-app",
-  "image": "nginx:latest",
-  "subdomain": "webapp",
-  "port": 80,
-  "env": {
-    "APP_COLOR": "blue"
-  }
-}
-```
-
-### List Instances
-
-`GET /api/instances`
-
-### Get Instance Detail
-
-`GET /api/instances/{id}`
-
-### Get Instance Logs
-
-`GET /api/instances/{id}/logs`
-
-### Delete Instance
-
-`DELETE /api/instances/{id}`
-
 ## How it Works
 
-1.  **Creation**: Micro PaaS pulls the Docker image, creates a container with custom environment variables, and records the assigned subdomain and port in the database.
-2.  **Routing**: The `InstanceProxy` middleware intercepts requests, extracts the subdomain from the `Host` header, and reverse-proxies the traffic to the container's internal IP and port.
-3.  **Sync & Self-Healing**: The `HealthChecker` background service monitors container states. If a container is found "Stopped" while its database status is "Running", it will attempt an automatic restart to ensure high availability.
+1.  **Dashboard**: You create an instance by providing an image (e.g., `nginx:latest`) and a subdomain.
+2.  **Deployment**: Micro PaaS pulls the image and creates a container.
+3.  **Dynamic Routing**: The `InstanceProxy` middleware detects the subdomain from the request and routes traffic to the correct container.
+4.  **OrbStack Support**: Uses labels to automatically map the dashboard to `micro-paas.local`.
 
-## Testing Subdomains Locally
+## Local DNS Testing
 
-You can test the reverse proxy without custom DNS using `curl`:
+If you are using OrbStack, subdomains like `any-app.micro-paas.local` will work automatically. If you are not using OrbStack, you can test via `curl`:
 
 ```bash
-curl -H "Host: webapp.localhost" http://localhost:8080
+curl -H "Host: myapp.micro-paas.local" http://localhost:8080
 ```
+
+## Available Task Commands
+
+- `task build`: Build the server binary.
+- `task docker:build`: Build the Docker image.
+- `task docker:up`: Run the application in Docker.
+- `task docker:dev`: Run development mode with `air` inside Docker.
+- `task test`: Run project tests.
+- `task tidy`: Clean up go modules.
 
 ## License
 

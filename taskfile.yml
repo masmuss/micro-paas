@@ -48,3 +48,28 @@ tasks:
     cmds:
       - rm -rf bin/
       - rm -rf tmp/
+
+  docker:build:
+    desc: Build the Docker image
+    cmds:
+      - docker compose build --no-cache
+
+  docker:up:
+    desc: Start the application in Docker
+    cmds:
+      - docker compose up -d
+
+  docker:down:
+    desc: Stop the Docker containers
+    cmds:
+      - docker compose down
+
+  docker:restart:
+    desc: Restart the Docker containers
+    cmds:
+      - docker compose restart
+
+  docker:logs:
+    desc: View Docker logs
+    cmds:
+      - docker compose logs -f

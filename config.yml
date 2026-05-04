@@ -1,4 +1,0 @@
-server_port: "8080"
-db_driver: "sqlite"
-db_dsn: "./micro-paas.db"
-docker_socket: "/var/run/docker.sock"

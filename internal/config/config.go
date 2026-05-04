@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
@@ -19,27 +20,27 @@ type Config struct {
 	DBDsn string `mapstructure:"db_dsn"`
 	// DockerSocket is the path to the Docker socket for container management (e.g. "/var/run/docker.sock").
 	DockerSocket string `mapstructure:"docker_socket"`
+	// DockerNetwork is the network name to connect containers to (e.g. "micro-paas-net").
+	DockerNetwork string `mapstructure:"docker_network"`
+	// MainDomain is the primary domain for the dashboard (e.g. "micro-paas.local").
+	MainDomain string `mapstructure:"main_domain"`
 }
 
-// LoadConfig loads configuration from config.yml (if present) and environment variables.
+// LoadConfig loads configuration from .env file (if present) and environment variables.
 // It returns a Config struct and an error if loading or unmarshalling fails.
 func LoadConfig() (*Config, error) {
+	// Load .env file if exists
+	_ = godotenv.Load()
+
 	viper.SetDefault("server_port", "8080")
 	viper.SetDefault("db_driver", "sqlite")
 	viper.SetDefault("db_dsn", "micro-paas.db")
 	viper.SetDefault("docker_socket", "/var/run/docker.sock")
+	viper.SetDefault("docker_network", "micro-paas-net")
+	viper.SetDefault("main_domain", "localhost")
 
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
+	// Read from environment variables
 	viper.AutomaticEnv()
-
-	if err := viper.ReadInConfig(); err != nil {
-		var notFoundErr viper.ConfigFileNotFoundError
-		if !errors.As(err, &notFoundErr) {
-			return nil, fmt.Errorf("read config file: %w", err)
-		}
-	}
 
 	var config Config
 	err := viper.Unmarshal(&config)

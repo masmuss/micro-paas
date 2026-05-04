@@ -5,7 +5,7 @@
             <button aria-label="Close" rel="prev" onclick="closeCreateModal()"></button>
             <p><strong>🆕 Create New Instance</strong></p>
         </header>
-        <form hx-post="/ui/instances" hx-target="#instances-table" hx-on::after-request="closeCreateModal()">
+        <form hx-post="/ui/instances" hx-target="#instances-table" hx-on::before-request="closeCreateModal()" hx-on::after-request="if(event.detail.successful) { document.getElementById('submit-btn').disabled = false; }">
             <label for="name"
                 >Instance Name
                 <input type="text" id="name" name="name" placeholder="my-awesome-app" required />

@@ -8,12 +8,13 @@ import (
 )
 
 func (a *App) setupRoutes(instanceHandler *handler.InstanceHandler, uiHandler *handler.UIHandler) {
-	proxy := paasMiddleware.NewInstanceProxy(a.Repo, a.Logger)
+	proxy := paasMiddleware.NewInstanceProxy(a.Repo, a.Logger, a.Config)
 
 	a.Router.Use(middleware.RequestID)
 	a.Router.Use(middleware.RealIP)
 	a.Router.Use(middleware.Logger)
 	a.Router.Use(middleware.Recoverer)
+	a.Router.Use(middleware.Throttle(10))
 	a.Router.Use(proxy.Handler)
 
 	// UI Routes

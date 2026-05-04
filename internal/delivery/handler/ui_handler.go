@@ -10,9 +10,11 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/masmuss/micro-paas/internal/config"
 	"github.com/masmuss/micro-paas/internal/model"
 	"github.com/masmuss/micro-paas/internal/repository"
 	"github.com/masmuss/micro-paas/internal/service"
+	"github.com/masmuss/micro-paas/internal/validation"
 )
 
 // UIHandler handles requests for the web dashboard and HTMX fragments.
@@ -20,10 +22,11 @@ type UIHandler struct {
 	repo      repository.InstanceRepository
 	dockerSvc service.DockerService
 	tmpl      *template.Template
+	cfg       *config.Config
 }
 
 // NewUIHandler creates a new UIHandler and parses templates from the filesystem.
-func NewUIHandler(repo repository.InstanceRepository, dockerSvc service.DockerService) *UIHandler {
+func NewUIHandler(repo repository.InstanceRepository, dockerSvc service.DockerService, cfg *config.Config) *UIHandler {
 	// Parse all templates in the html directory
 	tmpl := template.Must(template.ParseGlob(filepath.Join("internal", "delivery", "html", "*.html")))
 
@@ -31,12 +34,18 @@ func NewUIHandler(repo repository.InstanceRepository, dockerSvc service.DockerSe
 		repo:      repo,
 		dockerSvc: dockerSvc,
 		tmpl:      tmpl,
+		cfg:       cfg,
 	}
 }
 
 // Dashboard renders the main dashboard layout.
 func (h *UIHandler) Dashboard(w http.ResponseWriter, _ *http.Request) {
-	err := h.tmpl.ExecuteTemplate(w, "layout", nil)
+	data := struct {
+		MainDomain string
+	}{
+		MainDomain: h.cfg.MainDomain,
+	}
+	err := h.tmpl.ExecuteTemplate(w, "layout", data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -51,9 +60,11 @@ func (h *UIHandler) InstancesTable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
-		Instances interface{}
+		Instances  interface{}
+		MainDomain string
 	}{
-		Instances: instances,
+		Instances:  instances,
+		MainDomain: h.cfg.MainDomain,
 	}
 
 	err = h.tmpl.ExecuteTemplate(w, "instances-table", data)
@@ -179,6 +190,37 @@ func (h *UIHandler) CreateInstance(w http.ResponseWriter, r *http.Request) {
 
 	image := r.FormValue("image")
 	name := r.FormValue("name")
+	subdomain := r.FormValue("subdomain")
+
+	createInstanceErr := validation.ValidateCreateInstance(name, image, subdomain)
+	if createInstanceErr != nil {
+		w.Header().Set(
+			"HX-Trigger",
+			fmt.Sprintf(`{"showToast": "%s"}`, createInstanceErr.Error()),
+		)
+		http.Error(w, createInstanceErr.Error(), http.StatusBadRequest)
+		return
+	}
+
+	invalidSubdomain := validation.ValidateSubdomain(subdomain)
+	if invalidSubdomain != nil {
+		w.Header().Set(
+			"HX-Trigger",
+			fmt.Sprintf(`{"showToast": "%s"}`, invalidSubdomain.Error()),
+		)
+		http.Error(w, invalidSubdomain.Error(), http.StatusBadRequest)
+		return
+	}
+
+	invalidName := validation.ValidateInstanceName(name)
+	if invalidName != nil {
+		w.Header().Set(
+			"HX-Trigger",
+			fmt.Sprintf(`{"showToast": "%s"}`, invalidName.Error()),
+		)
+		http.Error(w, invalidName.Error(), http.StatusBadRequest)
+		return
+	}
 
 	// Parse ENV from textarea (KEY=VALUE per line)
 	envStr := r.FormValue("env")
@@ -195,20 +237,20 @@ func (h *UIHandler) CreateInstance(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 1. Pull Image first
-	err = h.dockerSvc.PullImage(r.Context(), image)
-	if err != nil {
-		w.Header().Set("HX-Trigger", fmt.Sprintf(`{"showToast": "Failed to pull image: %s"}`, image))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	inst := &model.Instance{
 		Name:      name,
 		Subdomain: r.FormValue("subdomain"),
 		Port:      port,
-		Status:    model.StatusStopped,
+		Status:    model.StatusRunning,
 		Env:       env,
+	}
+
+	// 1. Pull Image
+	err = h.dockerSvc.PullImage(r.Context(), image)
+	if err != nil {
+		w.Header().Set("HX-Trigger", fmt.Sprintf(`{"showToast": "Failed to pull image: %s"}`, err.Error()))
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	// 2. Create container
@@ -219,6 +261,19 @@ func (h *UIHandler) CreateInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 3. Start container
+	err = h.dockerSvc.StartContainer(r.Context(), containerID)
+	if err != nil {
+		inst.Status = model.StatusError
+		w.Header().Set(
+			"HX-Trigger",
+			fmt.Sprintf(
+				`{"showToast": "Container created but failed to start: %s"}`,
+				err.Error(),
+			),
+		)
+	}
+
 	inst.ContainerID = containerID
 	err = h.repo.Create(r.Context(), inst)
 	if err != nil {
@@ -227,7 +282,6 @@ func (h *UIHandler) CreateInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("HX-Trigger", `{"showToast": "Instance created successfully!"}`)
-	// Refresh the table
+	w.Header().Set("HX-Trigger", `{"showToast": "Instance created and started!"}`)
 	h.InstancesTable(w, r)
 }
