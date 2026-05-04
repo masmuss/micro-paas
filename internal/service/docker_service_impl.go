@@ -15,6 +15,7 @@ import (
 type DockerServiceImpl struct {
 	cli *client.Client
 	log *slog.Logger
+	cfg *config.Config
 }
 
 var _ DockerService = (*DockerServiceImpl)(nil)
@@ -30,6 +31,7 @@ func newDockerServiceImpl(cfg *config.Config, log *slog.Logger) (DockerService, 
 	return &DockerServiceImpl{
 		cli: cli,
 		log: log.With("component", "docker_service"),
+		cfg: cfg,
 	}, nil
 }
 
@@ -40,7 +42,16 @@ func (s *DockerServiceImpl) CreateContainer(
 	containerName string,
 	env map[string]string,
 ) (string, error) {
-	s.log.InfoContext(ctx, "Creating container", "name", containerName, "image", imageName)
+	s.log.InfoContext(
+		ctx,
+		"Creating container",
+		"name",
+		containerName,
+		"image",
+		imageName,
+		"network",
+		s.cfg.DockerNetwork,
+	)
 
 	var envList []string
 	for k, v := range env {
@@ -52,6 +63,9 @@ func (s *DockerServiceImpl) CreateContainer(
 		Config: &container.Config{
 			Image: imageName,
 			Env:   envList,
+		},
+		HostConfig: &container.HostConfig{
+			NetworkMode: container.NetworkMode(s.cfg.DockerNetwork),
 		},
 	}
 

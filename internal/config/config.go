@@ -19,6 +19,8 @@ type Config struct {
 	DBDsn string `mapstructure:"db_dsn"`
 	// DockerSocket is the path to the Docker socket for container management (e.g. "/var/run/docker.sock").
 	DockerSocket string `mapstructure:"docker_socket"`
+	// DockerNetwork is the network name to connect containers to (e.g. "micro-paas-net").
+	DockerNetwork string `mapstructure:"docker_network"`
 	// MainDomain is the primary domain for the dashboard (e.g. "micro-paas.local").
 	MainDomain string `mapstructure:"main_domain"`
 }
@@ -30,6 +32,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("db_driver", "sqlite")
 	viper.SetDefault("db_dsn", "micro-paas.db")
 	viper.SetDefault("docker_socket", "/var/run/docker.sock")
+	viper.SetDefault("docker_network", "micro-paas-net")
 	viper.SetDefault("main_domain", "localhost")
 
 	// Read from environment variables

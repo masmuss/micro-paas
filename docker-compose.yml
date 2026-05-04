@@ -14,3 +14,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./micro-paas.db:/app/micro-paas.db
     restart: unless-stopped
+    networks:
+      - micro-paas-net
+
+networks:
+  micro-paas-net:
+    name: micro-paas-net
