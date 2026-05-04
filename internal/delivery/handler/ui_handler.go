@@ -205,20 +205,20 @@ func (h *UIHandler) CreateInstance(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 1. Pull Image first
-	err = h.dockerSvc.PullImage(r.Context(), image)
-	if err != nil {
-		w.Header().Set("HX-Trigger", fmt.Sprintf(`{"showToast": "Failed to pull image: %s"}`, image))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	inst := &model.Instance{
 		Name:      name,
 		Subdomain: r.FormValue("subdomain"),
 		Port:      port,
-		Status:    model.StatusStopped,
+		Status:    model.StatusRunning,
 		Env:       env,
+	}
+
+	// 1. Pull Image
+	err = h.dockerSvc.PullImage(r.Context(), image)
+	if err != nil {
+		w.Header().Set("HX-Trigger", fmt.Sprintf(`{"showToast": "Failed to pull image: %s"}`, err.Error()))
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	// 2. Create container
@@ -229,6 +229,19 @@ func (h *UIHandler) CreateInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 3. Start container
+	err = h.dockerSvc.StartContainer(r.Context(), containerID)
+	if err != nil {
+		inst.Status = model.StatusError
+		w.Header().Set(
+			"HX-Trigger",
+			fmt.Sprintf(
+				`{"showToast": "Container created but failed to start: %s"}`,
+				err.Error(),
+			),
+		)
+	}
+
 	inst.ContainerID = containerID
 	err = h.repo.Create(r.Context(), inst)
 	if err != nil {
@@ -237,7 +250,6 @@ func (h *UIHandler) CreateInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("HX-Trigger", `{"showToast": "Instance created successfully!"}`)
-	// Refresh the table
+	w.Header().Set("HX-Trigger", `{"showToast": "Instance created and started!"}`)
 	h.InstancesTable(w, r)
 }

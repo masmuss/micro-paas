@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
@@ -25,9 +26,12 @@ type Config struct {
 	MainDomain string `mapstructure:"main_domain"`
 }
 
-// LoadConfig loads configuration from config.yml (if present) and environment variables.
+// LoadConfig loads configuration from .env file (if present) and environment variables.
 // It returns a Config struct and an error if loading or unmarshalling fails.
 func LoadConfig() (*Config, error) {
+	// Load .env file if exists
+	_ = godotenv.Load()
+
 	viper.SetDefault("server_port", "8080")
 	viper.SetDefault("db_driver", "sqlite")
 	viper.SetDefault("db_dsn", "micro-paas.db")
