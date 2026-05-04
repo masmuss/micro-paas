@@ -47,6 +47,12 @@ func (h *HealthChecker) Stop() {
 }
 
 func (h *HealthChecker) run(ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			h.logger.ErrorContext(ctx, "Health checker panic recovered", "panic", r)
+		}
+	}()
+
 	ticker := time.NewTicker(h.interval)
 	defer ticker.Stop()
 

@@ -3,6 +3,7 @@ package validation
 
 import (
 	"errors"
+	"regexp"
 )
 
 var (
@@ -24,6 +25,14 @@ func ValidateCreateInstance(name, image, subdomain string) error {
 	}
 	if subdomain == "" {
 		return ErrRequiredSubdomain
+	}
+	return nil
+}
+
+// ValidateSubdomain validates the subdomain field.
+func ValidateSubdomain(s string) error {
+	if matched, _ := regexp.MatchString(`^[a-z0-9-]+$`, s); !matched {
+		return errors.New("subdomain must be lowercase alphanumeric and may contain hyphens")
 	}
 	return nil
 }

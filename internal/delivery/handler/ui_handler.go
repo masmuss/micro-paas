@@ -14,6 +14,7 @@ import (
 	"github.com/masmuss/micro-paas/internal/model"
 	"github.com/masmuss/micro-paas/internal/repository"
 	"github.com/masmuss/micro-paas/internal/service"
+	"github.com/masmuss/micro-paas/internal/validation"
 )
 
 // UIHandler handles requests for the web dashboard and HTMX fragments.
@@ -189,6 +190,27 @@ func (h *UIHandler) CreateInstance(w http.ResponseWriter, r *http.Request) {
 
 	image := r.FormValue("image")
 	name := r.FormValue("name")
+	subdomain := r.FormValue("subdomain")
+
+	createInstanceErr := validation.ValidateCreateInstance(name, image, subdomain)
+	if createInstanceErr != nil {
+		w.Header().Set(
+			"HX-Trigger",
+			fmt.Sprintf(`{"showToast": "%s"}`, createInstanceErr.Error()),
+		)
+		http.Error(w, createInstanceErr.Error(), http.StatusBadRequest)
+		return
+	}
+
+	invalidSubdomain := validation.ValidateSubdomain(subdomain)
+	if invalidSubdomain != nil {
+		w.Header().Set(
+			"HX-Trigger",
+			fmt.Sprintf(`{"showToast": "%s"}`, invalidSubdomain.Error()),
+		)
+		http.Error(w, invalidSubdomain.Error(), http.StatusBadRequest)
+		return
+	}
 
 	// Parse ENV from textarea (KEY=VALUE per line)
 	envStr := r.FormValue("env")
